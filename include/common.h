@@ -17,6 +17,7 @@ extern cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, VERTICAL_ZIGZAG_MATRIX> leds;
 extern int32_t page_index,subpage_index;
 
 extern uint8_t brightness_max;
+extern uint8_t user_brightness_max;
 
 // Unified max value for LED channels used by all simulators.
 #define PANEL_LED_VALUE_MAX 30

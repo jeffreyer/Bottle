@@ -10,6 +10,7 @@
 #include "driver/rtc_io.h"
 
 uint8_t brightness_max=10;
+uint8_t user_brightness_max=10;
 uint8_t fade_delay_ms=20;
 
 uint32_t s_idle_timeout_ms = IDLE_TIMEOUT_DEFAULT*1000;
@@ -153,4 +154,3 @@ void sleep_manager_update() {
     return;
   }
 }
-
