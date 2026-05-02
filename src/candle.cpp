@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <stdio.h>
 #include "common.h"
+#include "gravity.h"
 
 // 柏林噪声的种子序列， 257个元素，最后一个防溢出
 static  uint8_t perm[] PROGMEM = {
@@ -140,100 +141,148 @@ uint8_t candle_flicker_wind_sharp(
     uint8_t size
 )
 {
-    // ===== 1. 高度 =====
     uint8_t height = v;
-
-    // ===== 2. 基础采样（先拿原始形状）=====
     uint8_t base0 = candle_sample(u, v);
-
-    // ===== 3. 边缘mask（关键！）=====
-    // 小于这个值认为是“火焰外”
     uint8_t edge_threshold = 20;
 
     if (base0 < edge_threshold)
         return 0;
 
-    // ===== 4. 扰动强度跟随亮度 =====
-    // 边缘弱，内部强
     uint8_t local_turb = (uint16_t)base0 * turbulence / 255;
-
-    // ===== 5. 风偏移（顶部更强）=====
     int16_t u_wind = (int16_t)wind_x * height / 255;
     int16_t v_wind = (int16_t)wind_y * height / 255;
 
-    // ===== 6. 噪声 =====
     uint8_t noise = perlin_noise(u + t/15, v + t/10);
 
     int16_t u_noise = ((int16_t)noise - 128) * local_turb / 64;
     int16_t v_noise = ((int16_t)noise - 128) * local_turb / 128;
 
-    // ===== 7. 合成 =====
     int16_t uu = u + u_wind + u_noise;
     int16_t vv = v + v_wind + v_noise;
 
-    // ===== 8. 收缩（火焰形状）=====
     int16_t shrink = height * 40 / 255;
     uu = (uu - 128) * (64 - shrink) / 64 + 128;
 
-    // ===== 9. size =====
-    uu = (uu - 128) * 80 / size + 128;
+    uu = (uu - 128) * 72 / size + 128;
     vv = (vv - 192) * 48 / size + 192;
 
-    // ===== 10. clamp =====
     if (uu < 0) uu = 0;
     if (uu > 255) uu = 255;
     if (vv < 0) vv = 0;
     if (vv > 255) vv = 255;
 
-    // ===== 11. 最终采样 =====
     uint8_t base = candle_sample(uu, vv);
-
-    // ===== 12. 边缘增强（gamma近似）=====
-    // 简化 gamma≈2
     base = (base * base) >> 8;
 
-    // ===== 13. 顶部fade =====
     uint8_t fade = 255 - (height > 180 ? (height - 180) * 3 : 0);
     if (fade > 255) fade = 0;
 
     uint16_t val = (uint16_t)base * fade / 255;
-
     return val;
+}
+
+static CRGB candle_colorize(uint8_t value, uint8_t theme_hue)
+{
+    if (value == 0) {
+        return CRGB::Black;
+    }
+
+    uint8_t hot = scale8(value, value);
+    CRGB outer = CHSV(theme_hue, 255, value);
+    CRGB mid = CHSV(theme_hue + 10, 220, qadd8(value, 24));
+    CRGB core = CHSV(theme_hue + 20, 100, qadd8(hot, 52));
+    CRGB white = CHSV(theme_hue + 26, 12, qadd8(hot, 28));
+
+    CRGB c = outer;
+    if (value > 70) {
+        uint8_t mix1 = scale8(value - 70, 170);
+        c = blend(c, mid, mix1);
+    }
+    if (value > 120) {
+        uint8_t mix2 = scale8(value - 120, 210);
+        c = blend(c, core, mix2);
+    }
+    if (value > 155) {
+        uint8_t mix3 = scale8(value - 155, 255);
+        c = blend(c, white, mix3);
+    }
+
+    return c;
 }
 
 float t = 0;
 uint32_t last_ms = 0;
 int mem_subindex3=-1;
 
+static void candle_orientation(bool* flip_y, int8_t* lean_x) {
+    gravity_xy_t g = gravity_get();
+    float gx = g.valid ? g.gx : 0.0f;
+    float gy = g.valid ? g.gy : -1.0f;
+
+    if (!isfinite(gx)) {
+        gx = 0.0f;
+    }
+    if (!isfinite(gy)) {
+        gy = -1.0f;
+    }
+
+    // Y-axis controls only upright/upside-down. X tilt is intentionally ignored.
+    *flip_y = (gy < 0.0f);
+    *lean_x = 0;
+}
+
+static uint8_t candle_root_locked_value(
+    uint8_t panel_x,
+    uint8_t panel_y,
+    bool flip_y,
+    uint32_t phase
+) {
+    int16_t from_root = flip_y ? (MATRIX_WIDTH - 1 - panel_x) : panel_x;
+    if (from_root < 0) from_root = 0;
+    if (from_root > MATRIX_WIDTH - 1) from_root = MATRIX_WIDTH - 1;
+
+    uint8_t template_v = ((uint16_t)from_root * 255 + (MATRIX_WIDTH - 1) / 2) / (MATRIX_WIDTH - 1);
+
+    int16_t center = ((int16_t)MATRIX_HEIGHT - 1) * 128;
+    int16_t lateral = ((int16_t)panel_y * 255) - center;
+    int16_t u16 = 128 + lateral / (MATRIX_HEIGHT - 1);
+    if (u16 < 0) u16 = 0;
+    if (u16 > 255) u16 = 255;
+
+    int8_t wind_y = -110;
+    uint8_t value = candle_flicker_wind_sharp(
+        (uint8_t)u16,
+        template_v,
+        phase,
+        0,
+        wind_y,
+        60,
+        48
+    );
+
+    return value;
+}
+
 int candle_loop()
 {
     delay(20);
     uint32_t now = millis();
-    float dt = (now - last_ms) / 1000.0f; // 秒
+    float dt = (now - last_ms) / 1000.0f;
     last_ms = now;
 
-    t += dt * 4250.0f; // 速度倍率
+    t += dt * 4250.0f;
 
+    bool flip_y = false;
+    int8_t lean_raw = 0;
+    candle_orientation(&flip_y, &lean_raw);
 
-    int8_t wind_x = 0;   // 👉 向右吹
-    int8_t wind_y = -110;  // 👉 微微上扬
+    uint8_t hue = (uint8_t)((subpage_index * 20) % 256);
 
-    for (uint8_t y = 0; y < MATRIX_WIDTH; y++)
-    {
-        uint8_t v = (y * 256 + 128) / MATRIX_WIDTH;
+    for (uint8_t y = 0; y < MATRIX_WIDTH; y++) {
+        for (uint8_t x = 0; x < MATRIX_HEIGHT; x++) {
+            uint8_t value = candle_root_locked_value(y, x, flip_y, t);
 
-        for (uint8_t x = 0; x < MATRIX_HEIGHT; x++)
-        {
-            uint8_t u = (x * 256 + 128) / MATRIX_HEIGHT;
-
-            uint8_t value = candle_flicker_wind_sharp(
-                u, v, t,
-                wind_x, wind_y,
-                60,   // turbulence
-                48    // size
-            );
-
-            leds(y,MATRIX_HEIGHT-x-1) = CHSV(((subpage_index*20) % 256), 255, value); // 🔥 比白色更像火
+            leds(y,MATRIX_HEIGHT-x-1) = candle_colorize(value, hue);
         }
     }
 
@@ -244,6 +293,11 @@ int candle_loop()
 int setup_candle(){
     brightness_max=10;
     FastLED.setBrightness(10);
+
+    int err = gravity_sensor_start();
+    if (err != 0) {
+        Serial.println("mpu start failed");
+    }
     
     if (mem_subindex3<0)
         mem_subindex3=load_config("candle_index");
@@ -256,5 +310,6 @@ int setup_candle(){
 int unload_candle(){
     mem_subindex3=subpage_index;
     save_config("candle_index",subpage_index);
+    gravity_sensor_sleep();
     return 0;
 }
