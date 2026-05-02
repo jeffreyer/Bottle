@@ -29,92 +29,104 @@
 // 0.3f 表示最低潮时只保留约 30% 的基础水量，你可以根据喜好改成 0.1f~0.9f 等。
 #define TIDE_MIN_FILL_RATIO 0.5f
 
-static rgb8_t s_pal_lut[PALETTE_COUNT][LED_LEVELS];
-
-DEFINE_GRADIENT_PALETTE(_full_palette) {
-  0,   255,   228,   225,    //MistyRose
- 64,   255,    69,     0,    //OrangeRed
-127,   255,     0,     0,    //red
-128,   255,     0,     0,    //red
-192,   255,    69,     0,    //OrangeRed
-255,   255,   228,   225 };  //MistyRose
-CRGBPalette16 full_palette = _full_palette;
-
 int mem_subindex2=-1;
 
 static TaskHandle_t s_task = NULL;
 static volatile bool s_running = false;
-rgb8_t PALETTES[PALETTE_COUNT][PAL_N] = {
-    {
-        {0, 0, 0},//实际灯珠颜色顺序：GRB。在此调整B的数值会影响蓝色随时间变化的强度
-        {0, 180, 100},
-        {0, 180, 100},
-        {0, 180, 100},
-        {0, 180, 100},
-        {0, 180, 100},  
-    },
-    {
-        {0, 0, 0},
-        {153, 255, 255},
-        {102, 255, 255},
-        {51, 255, 204},
-        {51, 255, 153},
-        {0, 255, 102},
-    },
-    {
-        {0, 0, 0},
-        {0, 180, 180},
-        {0, 180, 180},
-        {0, 180, 180},
-        {0, 180, 180},
-        {0, 180, 180},
-    },
-};
 
-static inline rgb8_t lerp_rgb(rgb8_t a, rgb8_t b, float t) {
-    if (t < 0.0f) t = 0.0f;
-    if (t > 1.0f) t = 1.0f;
-
-    rgb8_t o;
-    o.r = (uint8_t)lrintf((float)a.r + ((float)b.r - (float)a.r) * t);
-    o.g = (uint8_t)lrintf((float)a.g + ((float)b.g - (float)a.g) * t);
-    o.b = (uint8_t)lrintf((float)a.b + ((float)b.b - (float)a.b) * t);
-    return o;
-}
-
-static void build_palette_lut(uint8_t pal_idx) {
-    const rgb8_t* pal = PALETTES[pal_idx];
-
-    for (int lv = 0; lv < LED_LEVELS; lv++) {
-        float t = (LED_VAL_MAX_F > 0.0f) ? ((float)lv / LED_VAL_MAX_F) : 0.0f;
-        float p = t * (float)(PAL_N - 1);
-        int i0 = (int)p;
-        int i1 = (i0 + 1 < PAL_N) ? (i0 + 1) : i0;
-        float ft = p - (float)i0;
-
-        rgb8_t c = lerp_rgb(pal[i0], pal[i1], ft);
-        uint8_t m = c.r;
-        if (c.g > m) m = c.g;
-        if (c.b > m) m = c.b;
-
-        if (m > 0) {
-            float k = (float)lv / (float)m;
-            c.r = (uint8_t)lrintf((float)c.r * k);
-            c.g = (uint8_t)lrintf((float)c.g * k);
-            c.b = (uint8_t)lrintf((float)c.b * k);
-        } else {
-            c.r = 0;
-            c.g = 0;
-            c.b = 0;
-        }
-
-        s_pal_lut[pal_idx][lv] = c;
-    }
-
-}
 
 static inline float grid_get(const float* grid, int x, int y) {
     return grid[x * H + y];
+}
+
+static inline uint8_t clamp_u8(int v) {
+    if (v < 0) return 0;
+    if (v > 255) return 255;
+    return (uint8_t)v;
+}
+
+static inline float clampf_local(float v, float lo, float hi) {
+    if (v < lo) return lo;
+    if (v > hi) return hi;
+    return v;
+}
+
+static CRGB mix_rgb(const CRGB& a, const CRGB& b, uint8_t amount) {
+    CRGB out;
+    out.r = (uint8_t)(((uint16_t)a.r * (255 - amount) + (uint16_t)b.r * amount) / 255);
+    out.g = (uint8_t)(((uint16_t)a.g * (255 - amount) + (uint16_t)b.g * amount) / 255);
+    out.b = (uint8_t)(((uint16_t)a.b * (255 - amount) + (uint16_t)b.b * amount) / 255);
+    return out;
+}
+
+static float surface_factor(const float* grid, int sim_x, int sim_y, float gx, float gy) {
+    float mag = sqrtf(gx * gx + gy * gy);
+    if (mag < 0.05f || !isfinite(mag)) {
+        gx = 0.0f;
+        gy = 1.0f;
+        mag = 1.0f;
+    }
+
+    gx /= mag;
+    gy /= mag;
+
+    int air_dx = (gx > 0.35f) ? -1 : ((gx < -0.35f) ? 1 : 0);
+    int air_dy = (gy > 0.35f) ? -1 : ((gy < -0.35f) ? 1 : 0);
+    int water_dx = -air_dx;
+    int water_dy = -air_dy;
+
+    int air_x = sim_x + air_dx;
+    int air_y = sim_y + air_dy;
+    int water_x = sim_x + water_dx;
+    int water_y = sim_y + water_dy;
+
+    float here = grid_get(grid, sim_x, sim_y) / LED_VAL_MAX_F;
+    float air = 0.0f;
+    float water = here;
+
+    if (air_x >= 0 && air_x < W && air_y >= 0 && air_y < H) {
+        air = grid_get(grid, air_x, air_y) / LED_VAL_MAX_F;
+    }
+    if (water_x >= 0 && water_x < W && water_y >= 0 && water_y < H) {
+        water = grid_get(grid, water_x, water_y) / LED_VAL_MAX_F;
+    }
+
+    float edge = here - air;
+    float backing = water - air;
+    float surface = edge * 1.9f + backing * 0.45f;
+    surface *= clampf_local((0.72f - here) / 0.50f, 0.0f, 1.0f);
+    return clampf_local(surface, 0.0f, 1.0f);
+}
+
+static CRGB ocean_color(float amount, int sim_x, int sim_y, uint32_t now_ms, uint8_t hue, float surface) {
+    float fill = amount / LED_VAL_MAX_F;
+    if (fill <= 0.02f) {
+        return CRGB::Black;
+    }
+    if (fill > 1.0f) {
+        fill = 1.0f;
+    }
+
+    float surface_f = clampf_local(surface, 0.0f, 1.0f);
+    uint8_t shimmer = sin8((uint8_t)(now_ms / 18 + sim_x * 29 + sim_y * 11));
+    uint8_t val = clamp_u8(118 + (int)(fill * 88.0f));
+
+    CRGB c = CHSV(hue, 255, val);
+    CRGB surface_color = CHSV((uint8_t)(hue - 8), 96, clamp_u8(190 + shimmer / 12));
+    CRGB sparkle_color = CHSV((uint8_t)(hue - 6), 36, 230);
+
+    if (surface > 0.0f) {
+        float shimmer_level = 0.68f + ((float)shimmer / 255.0f) * 0.32f;
+        uint8_t highlight = (uint8_t)lrintf(surface_f * shimmer_level * 105.0f);
+        c = mix_rgb(c, surface_color, highlight);
+    }
+
+    if (surface > 0.45f && shimmer > 205) {
+        uint8_t sparkle = (uint8_t)lrintf(surface_f * ((float)shimmer - 205.0f) * 0.26f);
+        c = mix_rgb(c, sparkle_color, clamp_u8(sparkle));
+    }
+
+    return c;
 }
 
 static void sim_task(void* arg) {
@@ -132,12 +144,6 @@ static void sim_task(void* arg) {
         mem_subindex2=load_config("sim_index");
     subpage_index=mem_subindex2;
     
-
-
-    for (int i = 0; i < PALETTE_COUNT; i++) {
-        build_palette_lut((uint8_t)i);
-    }
-
     const TickType_t frame_ticks = pdMS_TO_TICKS(1000 / SIM_FPS);
     const float dt = 1.0f / (float)SIM_FPS;
     TickType_t last_wake = xTaskGetTickCount();
@@ -156,6 +162,7 @@ static void sim_task(void* arg) {
             gravity_xy_t g = gravity_get();
             float gx = g.valid ? g.gx : 0.0f;
             float gy = g.valid ? g.gy : 0.0f;
+            uint8_t hue = (uint8_t)((subpage_index * 20) % 256);
 
             // 根据当前时间计算潮汐因子（0.0 = 最低潮, 1.0 = 最高潮），
             // 并在每一帧更新内部粒子数量，实现真实“水量”随潮汐变化。
@@ -173,13 +180,8 @@ static void sim_task(void* arg) {
                     if (v < 0.0f) v = 0.0f;
                     if (v > LED_VAL_MAX_F) v = LED_VAL_MAX_F;
 
-                    int lv = (int)(v + 0.5f);
-                    if (lv < 0) lv = 0;
-                    CRGB c;
-                    if (lv>0)
-                        c=CHSV(((subpage_index*20) % 256), 255, 200);
-                    else
-                        c=CRGB::Black;
+                    float surface = surface_factor(grid, x, y, gx, gy);
+                    CRGB c = ocean_color(v, x, y, millis(), hue, surface);
 
                     rgb_set(y, x, c.r, c.g, c.b);
 
