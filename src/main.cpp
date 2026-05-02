@@ -3,7 +3,6 @@
 #include "rgb.h"
 #include "touch.h"
 // #include "record.h"
-// #include "mpu6050.h"
 #include <Wire.h>
 #include "esp_sleep.h"
 #include "sim_manager.h"
@@ -11,6 +10,7 @@
 #include "candle.h"
 #include "text.h"
 #include "sandglass.h"
+#include "breakout.h"
 #include <Preferences.h>
 
 uint8_t btn_status=0; //1 click,2 long click,3 sleep
@@ -18,9 +18,9 @@ uint32_t tm_touch_begin;
 
 typedef int (*FuncPtr)();
 
-FuncPtr func_setup[]={setup_rhythm, setup_fluid, setup_candle, setup_sand, /*setup_text*/};
-FuncPtr func_unload[]={unload_rhythm, unload_fluid, unload_candle, unload_sand, /*unload_text*/};
-FuncPtr func_loop[]={draw_rtythm, fluid_loop, candle_loop, sand_loop, /*unload_text*/};
+FuncPtr func_setup[]={setup_rhythm, setup_fluid, setup_candle, setup_sand, setup_breakout, /*setup_text*/};
+FuncPtr func_unload[]={unload_rhythm, unload_fluid, unload_candle, unload_sand, unload_breakout, /*unload_text*/};
+FuncPtr func_loop[]={draw_rtythm, fluid_loop, candle_loop, sand_loop, breakout_loop, /*unload_text*/};
 
 uint8_t page_cnt=sizeof(func_setup)/sizeof(func_setup[0]);
 
