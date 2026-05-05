@@ -4,7 +4,6 @@
 
 void rgb_init(void);
 void rgb_deinit(void);
-void rgb_set(uint32_t index, uint8_t r, uint8_t g, uint8_t b);
 void rgb_set(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b);
 void rgb_set_fast(uint32_t index, uint8_t r, uint8_t g, uint8_t b);
 void rgb_clear(void);

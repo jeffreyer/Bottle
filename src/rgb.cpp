@@ -22,28 +22,6 @@ void rgb_deinit(void) {
   // FastLED库不需要显式清理
 }
 
-void rgb_set(uint32_t index, uint8_t r, uint8_t g, uint8_t b) {
-  // if (index >= NUM_LEDS) {
-  //   return;
-  // }
-
-  // uint8_t m = r;
-  // if (g > m) {
-  //   m = g;
-  // }
-  // if (b > m) {
-  //   m = b;
-  // }
-
-  // if (m > PANEL_LED_VALUE_MAX) {
-  //   r = (uint16_t)r * PANEL_LED_VALUE_MAX / m;
-  //   g = (uint16_t)g * PANEL_LED_VALUE_MAX / m;
-  //   b = (uint16_t)b * PANEL_LED_VALUE_MAX / m;
-  // }
-
-  // leds[index] = CRGB(r, g, b);
-}
-
 void rgb_set(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b){
   leds(x,y) = CRGB(r,g,b);
 }

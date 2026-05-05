@@ -1,0 +1,107 @@
+runtime bottle-vm@0.2
+module rhythm.spectrum
+
+state spectrum[WIDTH] = 0
+state history[WIDTH] = 0
+state peaks[WIDTH] = 0
+state peak_y[WIDTH] = 0
+state phase = 0.0
+state style_id = 0
+state last_decay_time = 0
+state current_time = 0
+state time_diff = 0
+
+config style {
+  type select
+  label "Style"
+  default 0
+  options "Green Peak|Rainbow|Split Rainbow|Color Flow"
+}
+
+frame_ms 33
+
+setup {
+  clear(LEDS)
+}
+
+loop {
+  read(ACCEL)
+  style_id = style
+
+  spectrum = read(SPECTRUM)
+
+  for x in spectrum {
+    spectrum[x] = spectrum[x] * 82 / 100
+    spectrum[x] = spectrum[x] + max(spectrum[x] - history[x], 0) * 35 / 100
+    spectrum[x] = (history[x] + spectrum[x] * 2) / 3
+    spectrum[x] = clamp(spectrum[x] * max_height() / 80, 0, max_height())
+    history[x] = spectrum[x]
+    peaks[x] = max(peaks[x], spectrum[x])
+  }
+
+  current_time = millis()
+  time_diff = current_time - last_decay_time
+
+  if time_diff >= 90 {
+    last_decay_time = current_time
+    for x in spectrum {
+      peaks[x] = max(peaks[x] - 1, spectrum[x])
+    }
+  }
+
+  for x in spectrum {
+    peak_y[x] = max(peaks[x] - 1, 0)
+  }
+
+  phase = phase + 0.1 every 33ms
+
+  clear(LEDS)
+  for x in spectrum {
+    for y in range(0, max_height()) {
+      if style_id == 0 {
+        if y < spectrum[x] {
+          LEDS[x,y] = hsv(y * 80 / max_height() + 70, 255, 120 + y * 120 / max_height())
+        }
+        if y == peak_y[x] {
+          LEDS[x,y] = rgb(220, 220, 220)
+        }
+      } else if style_id == 1 {
+        if y < spectrum[x] {
+          LEDS[x,y] = hsv(x * 255 / WIDTH, 255, 180)
+        }
+        if y == peak_y[x] {
+          LEDS[x,y] = rgb(220, 220, 220)
+        }
+      } else if style_id == 2 {
+        if x % 2 == 0 {
+          if y < spectrum[x] {
+            LEDS[x,y] = hsv(x * 255 / WIDTH + 32, 255, 180)
+          }
+          if y == peak_y[x] {
+            LEDS[x,y] = rgb(220, 220, 220)
+          }
+        } else {
+          if y >= max_height() - spectrum[x] {
+            LEDS[x,y] = hsv(x * 255 / WIDTH + 32, 255, 180)
+          }
+          if y == max_height() - peak_y[x] - 1 {
+            LEDS[x,y] = rgb(220, 220, 220)
+          }
+        }
+      } else {
+        if y < spectrum[x] {
+          LEDS[x,y] = hsv(y * 255 / max_height() + phase, 255, 180)
+        }
+        if y == peak_y[x] {
+          LEDS[x,y] = hsv(peak_y[x] * 255 / max_height() + 160, 180, 180)
+        }
+      }
+    }
+  }
+  show(LEDS)
+}
+
+unload {
+  clear(LEDS)
+  show(LEDS)
+}

@@ -1,0 +1,1299 @@
+
+
+=== Bottle System Starting ===
+[Setup] GPIO initialized
+[  5007][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[Setup] Config loaded
+[  5013][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[Setup] Module registry initialized
+[Setup] Page index: 0
+[module_storage_init] Starting SPIFFS...
+[module_storage_init] SPIFFS.begin() returned: 1
+[Setup] Module storage initialized
+[ensure_defaults] Checking /rhythm_spectrum directory...
+[ensure_defaults] Creating /rhythm_spectrum directory...
+[ensure_defaults] Checking manifest file...
+[ensure_defaults] Reading script file...
+[ensure_defaults] Script length: 2121
+[ensure_defaults] Defaults ensured.
+[Setup] Module defaults ensured
+[Setup] RGB initialized
+Touch [CH 12] enabled on GPIO12
+[Setup] Touch sleep initialized
+[Setup] Running module setup for: Rhythm
+[  5194][E][Preferences.cpp:47] begin(): nvs_open failed: NOT_FOUND
+[Bottle] Compiling script (2121 bytes)...
+[Bottle] First line: runtime bottle-vm@0.2
+module rhythm.spectrum
+
+stat
+[Bottle] Initializing program...
+[Bottle] Initializing compiler...
+[Bottle] Initializing tokenizer...
+[Bottle] Getting first token...
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'r' (0x72)
+[advance] Got token type 5
+[Bottle] First token obtained, starting parse...
+[declaration] Current token type: 5
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'b' (0x62)
+[advance] Got token type 3
+[declaration] Matched TOKEN_RUNTIME
+[skip_line] Starting at line 1
+[skip_line] Advancing past token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'm' (0x6d)
+[advance] Got token type 6
+[skip_line] Done
+[declaration] Current token type: 6
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'r' (0x72)
+[advance] Got token type 3
+[declaration] Matched TOKEN_MODULE
+[skip_line] Starting at line 2
+[skip_line] Advancing past token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 7
+[skip_line] Done
+[declaration] Current token type: 7
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'W' (0x57)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '0' (0x30)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 7
+[declaration] Current token type: 7
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'h' (0x68)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'W' (0x57)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '0' (0x30)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 7
+[declaration] Current token type: 7
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'p' (0x70)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'W' (0x57)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '0' (0x30)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 7
+[declaration] Current token type: 7
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'p' (0x70)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'W' (0x57)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '0' (0x30)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 7
+[declaration] Current token type: 7
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'p' (0x70)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '0' (0x30)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 7
+[declaration] Current token type: 7
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '0' (0x30)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'c' (0x63)
+[advance] Got token type 8
+[declaration] Current token type: 8
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '{' (0x7b)
+[advance] Got token type 43
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 't' (0x74)
+[advance] Got token type 20
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'l' (0x6c)
+[advance] Got token type 21
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '"' (0x22)
+[advance] Got token type 4
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'd' (0x64)
+[advance] Got token type 22
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '0' (0x30)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'o' (0x6f)
+[advance] Got token type 23
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '"' (0x22)
+[advance] Got token type 4
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '}' (0x7d)
+[advance] Got token type 44
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'f' (0x66)
+[advance] Got token type 9
+[declaration] Current token type: 9
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '3' (0x33)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 10
+[declaration] Current token type: 10
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '{' (0x7b)
+[advance] Got token type 43
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'c' (0x63)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '(' (0x28)
+[advance] Got token type 39
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'L' (0x4c)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ')' (0x29)
+[advance] Got token type 40
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '}' (0x7d)
+[advance] Got token type 44
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'l' (0x6c)
+[advance] Got token type 11
+[declaration] Current token type: 11
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '{' (0x7b)
+[advance] Got token type 43
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'r' (0x72)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '(' (0x28)
+[advance] Got token type 39
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'A' (0x41)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ')' (0x29)
+[advance] Got token type 40
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'r' (0x72)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '(' (0x28)
+[advance] Got token type 39
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'S' (0x53)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ')' (0x29)
+[advance] Got token type 40
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'f' (0x66)
+[advance] Got token type 15
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'i' (0x69)
+[advance] Got token type 16
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '{' (0x7b)
+[advance] Got token type 43
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '*' (0x2a)
+[advance] Got token type 26
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '8' (0x38)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '/' (0x2f)
+[advance] Got token type 27
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '1' (0x31)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '+' (0x2b)
+[advance] Got token type 24
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'm' (0x6d)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '(' (0x28)
+[advance] Got token type 39
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '-' (0x2d)
+[advance] Got token type 25
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'h' (0x68)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ',' (0x2c)
+[advance] Got token type 45
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '0' (0x30)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ')' (0x29)
+[advance] Got token type 40
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '*' (0x2a)
+[advance] Got token type 26
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '3' (0x33)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '/' (0x2f)
+[advance] Got token type 27
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '1' (0x31)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '(' (0x28)
+[advance] Got token type 39
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'h' (0x68)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '+' (0x2b)
+[advance] Got token type 24
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '*' (0x2a)
+[advance] Got token type 26
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '2' (0x32)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ')' (0x29)
+[advance] Got token type 40
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '/' (0x2f)
+[advance] Got token type 27
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '3' (0x33)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'c' (0x63)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '(' (0x28)
+[advance] Got token type 39
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '*' (0x2a)
+[advance] Got token type 26
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'H' (0x48)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '/' (0x2f)
+[advance] Got token type 27
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '8' (0x38)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ',' (0x2c)
+[advance] Got token type 45
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '0' (0x30)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ',' (0x2c)
+[advance] Got token type 45
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'H' (0x48)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ')' (0x29)
+[advance] Got token type 40
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'h' (0x68)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'p' (0x70)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'm' (0x6d)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '(' (0x28)
+[advance] Got token type 39
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'p' (0x70)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ',' (0x2c)
+[advance] Got token type 45
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ')' (0x29)
+[advance] Got token type 40
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'p' (0x70)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'm' (0x6d)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '(' (0x28)
+[advance] Got token type 39
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'p' (0x70)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '-' (0x2d)
+[advance] Got token type 25
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '1' (0x31)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ',' (0x2c)
+[advance] Got token type 45
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ')' (0x29)
+[advance] Got token type 40
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'e' (0x65)
+[advance] Got token type 17
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '9' (0x39)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'm' (0x6d)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'p' (0x70)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'm' (0x6d)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '(' (0x28)
+[advance] Got token type 39
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'p' (0x70)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '[' (0x5b)
+[advance] Got token type 41
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ']' (0x5d)
+[advance] Got token type 42
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '-' (0x2d)
+[advance] Got token type 25
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '1' (0x31)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ',' (0x2c)
+[advance] Got token type 45
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '0' (0x30)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ')' (0x29)
+[advance] Got token type 40
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '}' (0x7d)
+[advance] Got token type 44
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'p' (0x70)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '=' (0x3d)
+[advance] Got token type 29
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'p' (0x70)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '+' (0x2b)
+[advance] Got token type 24
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '0' (0x30)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'e' (0x65)
+[advance] Got token type 17
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '3' (0x33)
+[advance] Got token type 2
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'm' (0x6d)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'c' (0x63)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '(' (0x28)
+[advance] Got token type 39
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'L' (0x4c)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char ')' (0x29)
+[advance] Got token type 40
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'f' (0x66)
+[advance] Got token type 15
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'x' (0x78)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'i' (0x69)
+[advance] Got token type 16
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 's' (0x73)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '{' (0x7b)
+[advance] Got token type 43
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'f' (0x66)
+[advance] Got token type 15
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'y' (0x79)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'i' (0x69)
+[advance] Got token type 16
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char 'H' (0x48)
+[advance] Got token type 3
+[advance] Getting next token...
+[scan_token] Called
+[scan_token] Whitespace skipped
+[scan_token] Got char '{' (0x7b)
+[advance] Got token type 43

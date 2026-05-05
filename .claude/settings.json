@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(C:\\\\Users\\\\jeff\\\\.platformio\\\\penv\\\\Scripts\\\\platformio.exe device *)",
+      "Bash(\"/c/Users/jeff/.platformio/penv/Scripts/platformio.exe\" device *)",
+      "Bash(taskkill //F //IM platformio.exe)",
+      "Bash(taskkill //F //IM platformio.exe //IM python.exe)",
+      "Bash(cmd.exe //c \"chcp 65001 > nul && C:\\\\Users\\\\jeff\\\\.platformio\\\\penv\\\\Scripts\\\\platformio.exe run --target upload\")",
+      "PowerShell($env:PYTHONIOENCODING='utf-8'; C:\\\\Users\\\\jeff\\\\.platformio\\\\penv\\\\Scripts\\\\platformio.exe run --target upload 2>&1 | Select-Object -Last 20)",
+      "PowerShell($env:PYTHONIOENCODING='utf-8'; C:\\\\Users\\\\jeff\\\\.platformio\\\\penv\\\\Scripts\\\\platformio.exe device monitor --port COM22 --baud 115200 --echo --filter direct 2>&1 | Select-Object -First 100)",
+      "PowerShell($env:PYTHONIOENCODING='utf-8'; C:\\\\Users\\\\jeff\\\\.platformio\\\\penv\\\\Scripts\\\\platformio.exe run --target upload 2>&1 | Select-Object -Last 5; Start-Sleep -Seconds 2; timeout 20 C:\\\\Users\\\\jeff\\\\.platformio\\\\penv\\\\Scripts\\\\platformio.exe device monitor --port COM22 --baud 115200 2>&1)"
+    ]
+  }
+}

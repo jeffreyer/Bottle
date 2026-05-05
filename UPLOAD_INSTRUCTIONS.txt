@@ -1,0 +1,43 @@
+Bottle VM For-Loop Fix - Upload Instructions
+=============================================
+
+The fix has been compiled successfully!
+
+Firmware location:
+  .pio\build\pico32\firmware.factory.bin (941,184 bytes)
+
+The fix resolves the black screen issue caused by for-loop iterator variables
+being reused incorrectly.
+
+Upload Options:
+---------------
+
+Option 1: Manual upload using esptool (if available)
+  esptool.py --chip esp32s3 --port COM22 --baud 460800 write_flash -z 0x0 .pio\build\pico32\firmware.factory.bin
+
+Option 2: Use Arduino IDE or ESP Flash Download Tool
+  - Open the tool
+  - Select firmware.factory.bin
+  - Flash address: 0x0
+  - Port: COM22
+  - Upload
+
+Option 3: Try PlatformIO again (may have encoding issues)
+  platformio run --target upload
+
+Option 4: Check if previous upload succeeded
+  - The device may have already been updated (upload started before crash)
+  - Try restarting the device and check if LEDs work
+
+What was fixed:
+---------------
+- Two "for x in spectrum" loops now correctly share the same scalar variable
+- Loop iterator is properly reinitialized to 0 at the start of each loop
+- LED coordinates are now correct (0-16 instead of 17)
+
+Expected result:
+----------------
+The rhythm_spectrum module should now display colorful LED patterns
+responding to audio spectrum data, instead of a black screen.
+
+Date: 2026-05-05

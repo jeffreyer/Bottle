@@ -1,6 +1,7 @@
 #include "ble_config.h"
 #include "app_control.h"
 #include "common.h"
+#include "module_registry.h"
 #include "rgb.h"
 #include "sleep_manager.h"
 #include <Arduino.h>
@@ -19,9 +20,6 @@ static String s_pending_cmd;
 static bool s_has_pending_cmd = false;
 static bool s_client_connected = false;
 static bool s_ble_enabled = false;
-static uint8_t s_tap_count = 0;
-static uint32_t s_tap_window_begin = 0;
-static int32_t s_tap_start_subpage = 0;
 
 static bool extract_int(const String& json, const char* key, int* out) {
     String marker = String("\"") + key + "\"";
@@ -72,6 +70,7 @@ static String status_json() {
     s += ",\"page\":" + String(page_index);
     s += ",\"subpage\":" + String(subpage_index);
     s += ",\"page_count\":" + String(app_get_page_count());
+    s += ",\"modules\":" + module_registry_status_json();
     s += "}";
     return s;
 }
@@ -144,9 +143,22 @@ static void apply_command(const String& cmd) {
         app_set_page(new_page, new_subpage);
     }
 
+    int module_index = -1;
+    if (extract_int(cmd, "module", &module_index) && extract_int(cmd, "enabled", &value)) {
+        app_set_module_enabled(module_index, value != 0);
+    }
+
+    if (extract_int(cmd, "manifest", &module_index)) {
+        set_status(module_registry_manifest_json(module_index));
+        return;
+    }
+
     String key;
     if (extract_string(cmd, "key", &key) && extract_int(cmd, "value", &value)) {
         save_config(key, value);
+        if (key == "style") {
+            app_set_subpage(value);
+        }
     }
 
     set_status(status_json());
@@ -246,35 +258,15 @@ bool ble_config_is_enabled(void) {
     return s_ble_enabled;
 }
 
-bool ble_config_handle_tap(void) {
-    uint32_t now = millis();
-    if (now - s_tap_window_begin > 3000) {
-        s_tap_window_begin = now;
-        s_tap_count = 0;
-        s_tap_start_subpage = subpage_index;
-    }
-
-    if (s_tap_count == 0) {
-        s_tap_start_subpage = subpage_index;
-    }
-
-    s_tap_count++;
-    if (s_tap_count < 5) {
-        return false;
-    }
-
-    s_tap_count = 0;
-    s_tap_window_begin = now;
+void ble_config_toggle(void) {
     if (s_ble_enabled) {
         ble_config_stop();
         FastLED.clear();
         FastLED.show();
     } else {
-        subpage_index = s_tap_start_subpage;
         ble_config_init();
         draw_ble_icon();
     }
-    return true;
 }
 
 void ble_config_render_mode(void) {

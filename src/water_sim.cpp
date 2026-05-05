@@ -159,6 +159,12 @@ static void sim_task(void* arg) {
         while (s_running) {
             vTaskDelayUntil(&last_wake, frame_ticks);
 
+            // 长按显示图标时暂停渲染
+            extern uint8_t touch_hold_hint;
+            if (touch_hold_hint > 0) {
+                continue;
+            }
+
             gravity_xy_t g = gravity_get();
             float gx = g.valid ? g.gx : 0.0f;
             float gy = g.valid ? g.gy : 0.0f;
