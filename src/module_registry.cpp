@@ -1,6 +1,7 @@
 #include "module_registry.h"
 #include "breakout.h"
 #include "candle.h"
+#include "colorwave_lua.h"
 #include "rhythm_lua.h"
 #include "sandglass.h"
 #include "sim_manager.h"
@@ -25,6 +26,7 @@ static const module_config_item_t breakout_configs[] = {
 
 static const module_descriptor_t k_modules[] = {
   {"rhythm", "Rhythm", "3.0.0", "Bottle", "Lua-powered audio spectrum visualizer", "lua", "lua-5.4.7", nullptr, setup_rhythm_lua_module, unload_rhythm_lua_module, loop_rhythm_lua_module, nullptr, 0, true},
+  {"colorwave", "ColorWave", "1.0.0", "Bottle", "Full screen color scrolling effect", "lua", "lua-5.4.7", nullptr, setup_colorwave_lua_module, unload_colorwave_lua_module, loop_colorwave_lua_module, nullptr, 0, true},
   // {"rhythm", "Rhythm", "3.0.0", "Bottle", "Lua-powered audio spectrum visualizer", "lua", "lua-5.4.7", nullptr, setup_rhythm, unload_rhythm, draw_rtythm, nullptr, 0, true},
   {"water", "Water", "1.0.0", "Bottle", "Gravity liquid simulation", "native", "native", nullptr, setup_fluid, unload_fluid, fluid_loop, water_configs, (uint8_t)(sizeof(water_configs) / sizeof(water_configs[0])), true},
   {"candle", "Candle", "1.0.0", "Bottle", "Gravity-aware candle flame", "native", "native", nullptr, setup_candle, unload_candle, candle_loop, candle_configs, (uint8_t)(sizeof(candle_configs) / sizeof(candle_configs[0])), true},
