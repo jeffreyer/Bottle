@@ -17,20 +17,6 @@ uint8_t touch_hold_hint = 0;
 uint8_t touch_hold_cycle = 0; //0=module, 1=ble, 2=sleep
 uint32_t touch_hold_cycle_time = 0;
 
-static void flash_fill(uint8_t r, uint8_t g, uint8_t b, uint16_t ms) {
-  FastLED.clear();
-  rgb_set_brightness(brightness_max);
-  for (uint8_t x = 0; x < MATRIX_WIDTH; x++) {
-    for (uint8_t y = 0; y < MATRIX_HEIGHT; y++) {
-      rgb_set(x, y, r, g, b);
-    }
-  }
-  FastLED.show();
-  delay(ms);
-  FastLED.clear();
-  FastLED.show();
-}
-
 void main_load_config(){
   Preferences prefs;
   prefs.begin("bottle", true);
@@ -198,14 +184,6 @@ void check_btn(){
       return;
     }
     subpage_index++;
-    const module_descriptor_t* module = module_registry_get((uint8_t)page_index);
-    if (module && String(module->id) == "rhythm") {
-      subpage_index = subpage_index % 4;
-      save_config("style", subpage_index);
-      flash_style_hint((uint8_t)subpage_index);
-      Serial.printf("style=%d\n", (int)subpage_index);
-    }
-    // Serial.println(subpage_index);
   }
   else if (btn_status==2){
     if (ble_config_is_enabled()) {
@@ -239,11 +217,7 @@ void check_btn(){
   }
   else if (btn_status==4){
     btn_status=0;
-    bool was_enabled = ble_config_is_enabled();
     ble_config_toggle();
-    if (was_enabled) {
-      flash_fill(0, 70, 20, 100);
-    }
   }
   else if (btn_status==3){
     // Sleep action - save config and enter deep sleep
@@ -261,9 +235,7 @@ void check_cmd(){
       save_config("sleep_sec",sec);
       s_idle_timeout_ms=sec*1000;
       Serial.printf("set sleep delay seconds:%d",sec);
-    } else if (command.startsWith("status")) {
-      Serial.println(module_registry_status_json());
-    } 
+    }
   }
 
 }
@@ -273,24 +245,17 @@ void setup() {
 
   pinMode(LED_SWITCH_PIN, OUTPUT);
   digitalWrite(LED_SWITCH_PIN, LOW);
-  Serial.println("[Setup] GPIO initialized");
 
   main_load_config();
-  Serial.println("[Setup] Config loaded");
 
   module_registry_init();
-  Serial.println("[Setup] Module registry initialized");
 
   page_index = module_registry_normalize_index(page_index);
   Serial.printf("[Setup] Page index: %d\n", page_index);
 
   rgb_init();
-  Serial.println("[Setup] RGB initialized");
-
-  // record();
 
   touch_sleep_init(touch_on_active_cb,touch_on_inactive_cb);
-  Serial.println("[Setup] Touch sleep initialized");
 
   const module_descriptor_t* module = module_registry_get((uint8_t)page_index);
   if (module && module->setup) {
@@ -299,11 +264,8 @@ void setup() {
   }
 
   sleep_manager_init(0);
-  Serial.println("[Setup] Sleep manager initialized");
 
   sleep_manager_start();
-  Serial.println("[Setup] Sleep manager started");
-  Serial.println("=== Setup Complete ===\n");
 }
 
 void loop() {

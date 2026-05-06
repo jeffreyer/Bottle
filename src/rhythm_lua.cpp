@@ -220,7 +220,7 @@ end
 
 function loop()
   local current_time = time.millis()
-  local style = config.get("style")
+  local style = sys.page_index() % 4
 
   led.clear()
 
@@ -395,7 +395,7 @@ int setup_rhythm_lua_module(void) {
 
 int unload_rhythm_lua_module(void) {
   g_host.saved_subpage = subpage_index;
-  save_config(kDefaultConfigKey, subpage_index);
+  save_config(kDefaultConfigKey, subpage_index % 4);
 
   // Call unload function
   if (g_host.L && g_host.script_loaded) {

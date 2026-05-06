@@ -195,6 +195,17 @@ static const luaL_Reg time_lib[] = {
   {NULL, NULL}
 };
 
+static int lua_sys_page_index(lua_State* L) {
+  lua_pushnumber(L, subpage_index);
+  return 1;
+}
+
+static const luaL_Reg sys_lib[] = {
+  {"page_index", lua_sys_page_index},
+  {NULL, NULL}
+};
+
+
 // ============================================================================
 // Math Extensions
 // ============================================================================
@@ -242,6 +253,9 @@ void register_lua_hardware_apis(lua_State* L) {
   lua_pushcfunction(L, lua_math_clamp);
   lua_setfield(L, -2, "clamp");
   lua_pop(L, 1);
+
+  luaL_newlib(L, sys_lib);
+  lua_setglobal(L, "sys");
 
   // Register constants
   lua_pushnumber(L, MATRIX_WIDTH);
