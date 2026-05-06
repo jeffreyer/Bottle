@@ -91,25 +91,36 @@ void show_sleep_hold_hint(void) {
   const uint8_t center_y = MATRIX_HEIGHT / 2; // 4
 
   // Draw power off icon: bottom vertical line + circle with gap at bottom (upside down)
-  // Circle with gap at bottom (incomplete circle)
-  // Left side
-  rgb_set(center_x - 2, center_y - 1, 60, 0, 0);
-  rgb_set(center_x - 2, center_y, 60, 0, 0);
-  rgb_set(center_x - 2, center_y + 1, 60, 0, 0);
+  // Circle with gap at bottom (incomplete circle) - radius increased by 1 pixel
+
+  // Left side (extended)
+  rgb_set(center_x - 3, center_y - 1, 60, 0, 0);
+  rgb_set(center_x - 3, center_y, 60, 0, 0);
+  rgb_set(center_x - 3, center_y + 1, 60, 0, 0);
+  // rgb_set(center_x - 3, center_y + 2, 60, 0, 0);
+
+  // Left middle
+  rgb_set(center_x - 2, center_y - 2, 60, 0, 0);
+  rgb_set(center_x - 2, center_y + 2, 60, 0, 0);
 
   // Top left corner
-  rgb_set(center_x - 1, center_y - 2, 60, 0, 0);
+  rgb_set(center_x - 1, center_y - 3, 60, 0, 0);
 
   // Top
-  rgb_set(center_x, center_y - 2, 60, 0, 0);
+  rgb_set(center_x, center_y - 3, 60, 0, 0);
 
   // Top right corner
-  rgb_set(center_x + 1, center_y - 2, 60, 0, 0);
+  rgb_set(center_x + 1, center_y - 3, 60, 0, 0);
 
-  // Right side
-  rgb_set(center_x + 2, center_y + 1, 60, 0, 0);
-  rgb_set(center_x + 2, center_y, 60, 0, 0);
-  rgb_set(center_x + 2, center_y - 1, 60, 0, 0);
+  // Right middle
+  rgb_set(center_x + 2, center_y - 2, 60, 0, 0);
+  rgb_set(center_x + 2, center_y + 2, 60, 0, 0);
+
+  // Right side (extended)
+  // rgb_set(center_x + 3, center_y + 2, 60, 0, 0);
+  rgb_set(center_x + 3, center_y + 1, 60, 0, 0);
+  rgb_set(center_x + 3, center_y, 60, 0, 0);
+  rgb_set(center_x + 3, center_y - 1, 60, 0, 0);
 
   // Bottom vertical line (power indicator, 3 pixels)
   rgb_set(center_x, center_y + 1, 60, 0, 0);
