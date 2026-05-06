@@ -56,29 +56,32 @@ static inline bottle_value_t bottle_color(module_rgb_t value) {
 }
 
 // Type conversion helpers
+static inline bool bottle_is_truthy(bottle_value_t v) {
+  switch (v.type) {
+    case BOTTLE_TYPE_INT: return v.as.i != 0;
+    case BOTTLE_TYPE_FLOAT: return v.as.f != 0.0f;
+    case BOTTLE_TYPE_BOOL: return v.as.b;
+    case BOTTLE_TYPE_COLOR: return true; // Colors are always truthy
+    default: return false;
+  }
+}
+
 static inline float bottle_to_float(bottle_value_t v) {
-  if (v.type == BOTTLE_TYPE_FLOAT) return v.as.f;
-  if (v.type == BOTTLE_TYPE_INT) return (float)v.as.i;
-  if (v.type == BOTTLE_TYPE_BOOL) return v.as.b ? 1.0f : 0.0f;
-  return 0.0f;
+  switch (v.type) {
+    case BOTTLE_TYPE_INT: return (float)v.as.i;
+    case BOTTLE_TYPE_FLOAT: return v.as.f;
+    case BOTTLE_TYPE_BOOL: return v.as.b ? 1.0f : 0.0f;
+    default: return 0.0f;
+  }
 }
 
 static inline int32_t bottle_to_int(bottle_value_t v) {
-  if (v.type == BOTTLE_TYPE_INT) return v.as.i;
-  if (v.type == BOTTLE_TYPE_FLOAT) return (int32_t)v.as.f;
-  if (v.type == BOTTLE_TYPE_BOOL) return v.as.b ? 1 : 0;
-  return 0;
-}
-
-static inline bool bottle_to_bool(bottle_value_t v) {
-  if (v.type == BOTTLE_TYPE_BOOL) return v.as.b;
-  if (v.type == BOTTLE_TYPE_INT) return v.as.i != 0;
-  if (v.type == BOTTLE_TYPE_FLOAT) return v.as.f != 0.0f;
-  return false;
-}
-
-static inline bool bottle_is_truthy(bottle_value_t v) {
-  return bottle_to_bool(v);
+  switch (v.type) {
+    case BOTTLE_TYPE_INT: return v.as.i;
+    case BOTTLE_TYPE_FLOAT: return (int32_t)v.as.f;
+    case BOTTLE_TYPE_BOOL: return v.as.b ? 1 : 0;
+    default: return 0;
+  }
 }
 
 static inline uint8_t bottle_to_uint8(bottle_value_t v) {

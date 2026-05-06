@@ -145,7 +145,7 @@ int main() {
         printf("program->bytecode[467] address: %p\n", (void*)&program->bytecode[467]);
         printf("program size: %zu bytes\n", sizeof(*program));
         printf("vm address: %p\n", (void*)vm);
-        printf("vm->arrays address: %p\n", (void*)&vm->arrays[0][0]);
+        printf("vm->int_arrays address: %p\n", (void*)&vm->int_arrays[0][0]);
         printf("vm->scalars address: %p\n", (void*)&vm->scalars[0]);
         printf("vm->stack address: %p\n", (void*)&vm->stack[0]);
         printf("vm->stack[127] address: %p\n", (void*)&vm->stack[127]);

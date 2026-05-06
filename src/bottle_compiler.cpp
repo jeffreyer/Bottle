@@ -1378,20 +1378,73 @@ static void state_declaration(compiler_t* c) {
     }
     
     consume(c, TOKEN_RIGHT_BRACKET, "Expect ']'");
-    
-    uint8_t initial_value = 0;
+
+    // Determine array element type and initial value
+    bottle_value_type_t element_type = BOTTLE_TYPE_INT;
+    union {
+      uint8_t int_value;
+      float float_value;
+    } initial_value;
+    initial_value.int_value = 0;
+
+    bool has_literal = false;
+    float literal_values[MATRIX_WIDTH];
+    uint8_t literal_count = 0;
+
     if (match(c, TOKEN_EQUAL)) {
-      if (!check(c, TOKEN_NUMBER)) {
-        error(c, "Expect number for initial value");
+      if (match(c, TOKEN_LEFT_BRACKET)) {
+        // Array literal: state arr[N] = [v1, v2, ...]
+        has_literal = true;
+
+        if (!check(c, TOKEN_RIGHT_BRACKET)) {
+          do {
+            if (literal_count >= length) {
+              error(c, "Too many values in array literal");
+              return;
+            }
+
+            if (!check(c, TOKEN_NUMBER)) {
+              error(c, "Expect number in array literal");
+              return;
+            }
+            advance(c);
+
+            // Detect float type if any value is float
+            if (c->previous.is_float) {
+              element_type = BOTTLE_TYPE_FLOAT;
+              literal_values[literal_count++] = c->previous.float_value;
+            } else {
+              literal_values[literal_count++] = (float)c->previous.int_value;
+            }
+          } while (match(c, TOKEN_COMMA));
+        }
+
+        consume(c, TOKEN_RIGHT_BRACKET, "Expect ']' after array literal");
+
+        // Pad remaining elements with 0
+        while (literal_count < length) {
+          literal_values[literal_count++] = 0.0f;
+        }
+
+      } else if (check(c, TOKEN_NUMBER)) {
+        // Single initial value: state arr[N] = value
+        advance(c);
+        if (c->previous.is_float) {
+          element_type = BOTTLE_TYPE_FLOAT;
+          initial_value.float_value = c->previous.float_value;
+        } else {
+          element_type = BOTTLE_TYPE_INT;
+          initial_value.int_value = (uint8_t)c->previous.int_value;
+        }
+      } else {
+        error(c, "Expect number or array literal for initial value");
         return;
       }
-      advance(c);
-      initial_value = (uint8_t)c->previous.int_value;
     }
-    
+
     // Add to compiler symbol table
     uint8_t idx = add_array(c, &name);
-    
+
     // Add to program metadata
     if (c->program->array_count >= BOTTLE_MAX_ARRAYS) {
       error(c, "Too many arrays");
@@ -1400,7 +1453,27 @@ static void state_declaration(compiler_t* c) {
     bottle_array_def_t* array = &c->program->arrays[c->program->array_count++];
     copy_identifier(array->name, &name, BOTTLE_NAME_LEN);
     array->length = length;
-    array->initial_value = initial_value;
+    array->element_type = element_type;
+    if (element_type == BOTTLE_TYPE_FLOAT) {
+      array->initial_value.float_value = initial_value.float_value;
+    } else {
+      array->initial_value.int_value = initial_value.int_value;
+    }
+
+    // Generate bytecode for array literal initialization if needed
+    if (has_literal) {
+      emit_byte(c, OP_INIT_ARRAY_LITERAL);
+      emit_byte(c, idx);
+      emit_byte(c, literal_count);
+
+      // Emit literal values as constants
+      for (uint8_t i = 0; i < literal_count; i++) {
+        uint16_t const_idx = add_constant(c, element_type == BOTTLE_TYPE_FLOAT
+                                            ? bottle_float(literal_values[i])
+                                            : bottle_int((int32_t)literal_values[i]));
+        emit_u16(c, const_idx);
+      }
+    }
     
   } else {
     // Scalar declaration

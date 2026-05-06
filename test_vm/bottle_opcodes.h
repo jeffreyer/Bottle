@@ -53,6 +53,7 @@ typedef enum {
   OP_CALL_COS = 0x56,        // cos(x) in radians
   OP_CALL_RANDOM = 0x57,     // random(min, max)
   OP_CALL_MILLIS = 0x58,     // millis() - returns ctx->now_ms
+  OP_CALL_MAX_HEIGHT = 0x59, // max_height() - returns value_count based on orientation
 
   // Color functions
   OP_CALL_HSV = 0x60,        // hsv(h, s, v) -> color
@@ -65,6 +66,7 @@ typedef enum {
   OP_CLEAR_LEDS = 0x72,      // Clear LED matrix
   OP_SET_LED = 0x73,         // Set LED at (x, y) to color (pops color, y, x)
   OP_SHOW_LEDS = 0x74,       // Flush LED updates
+  OP_INIT_ARRAY_LITERAL = 0x75, // Initialize array from literal values [u8 array_index, u8 count, values...]
 
   // Debug
   OP_PRINT = 0x80,           // Print top of stack to Serial

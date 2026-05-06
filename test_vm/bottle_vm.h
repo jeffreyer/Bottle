@@ -16,8 +16,12 @@ extern "C" {
 
 // VM runtime state
 typedef struct {
-  // State arrays (uint8_t for LED values)
-  uint8_t arrays[BOTTLE_MAX_ARRAYS][MATRIX_WIDTH];
+  // State arrays - separate storage for int and float arrays
+  uint8_t int_arrays[BOTTLE_MAX_ARRAYS][MATRIX_WIDTH];
+  float float_arrays[BOTTLE_MAX_ARRAYS][MATRIX_WIDTH];
+
+  // Array type metadata (copied from program)
+  bottle_value_type_t array_types[BOTTLE_MAX_ARRAYS];
 
   // State scalars (float for smooth animations)
   float scalars[BOTTLE_MAX_SCALARS];

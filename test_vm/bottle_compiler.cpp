@@ -552,6 +552,16 @@ static uint8_t add_scalar(compiler_t* c, token_t* name) {
   return c->scalar_count++;
 }
 
+// Helper function to find or add a scalar by string name
+static uint8_t find_or_add_scalar(compiler_t* c, const char* name) {
+  token_t temp_token = {TOKEN_IDENTIFIER, name, (uint16_t)strlen(name), c->current.line, c->current.column};
+  int8_t existing = find_scalar(c, &temp_token);
+  if (existing >= 0) {
+    return (uint8_t)existing;
+  }
+  return add_scalar(c, &temp_token);
+}
+
 // Expression parsing (precedence climbing)
 static void parse_precedence(compiler_t* c, int precedence);
 
@@ -672,6 +682,9 @@ static void call(compiler_t* c) {
   } else if (identifier_equals_string(&func_name, "millis")) {
     if (arg_count != 0) error(c, "millis() requires 0 arguments");
     emit_opcode(c, OP_CALL_MILLIS);
+  } else if (identifier_equals_string(&func_name, "max_height")) {
+    if (arg_count != 0) error(c, "max_height() requires 0 arguments");
+    emit_opcode(c, OP_CALL_MAX_HEIGHT);
   } else if (identifier_equals_string(&func_name, "hsv")) {
     if (arg_count != 3) error(c, "hsv() requires 3 arguments");
     emit_opcode(c, OP_CALL_HSV);
@@ -1055,47 +1068,20 @@ static void for_statement(compiler_t* c) {
   int8_t array_idx = -1;
 
   if (check(c, TOKEN_IDENTIFIER) && identifier_equals_string(&c->current, "range")) {
-    // Parse range(start, end)
+    // Parse range(start, end) - now supports arbitrary expressions
     Serial.println("[Bottle] for_statement: parsing range()");
     advance(c); // consume 'range'
     consume(c, TOKEN_LEFT_PAREN, "Expect '(' after 'range'");
 
-    // Parse start value
-    if (check(c, TOKEN_NUMBER)) {
-      advance(c);
-      loop_start_value = (uint8_t)c->previous.int_value;
-      Serial.printf("[Bottle] for_statement: range start = %d\n", loop_start_value);
-    } else {
-      error(c, "Expect number for range start");
-      return;
-    }
+    // Parse start expression - compile it to push value onto stack
+    expression(c);
+    Serial.println("[Bottle] for_statement: compiled range start expression");
 
     consume(c, TOKEN_COMMA, "Expect ',' in range");
 
-    // Parse end value (can be number or constant like HEIGHT)
-    if (check(c, TOKEN_NUMBER)) {
-      advance(c);
-      loop_end_value = (uint8_t)c->previous.int_value;
-      Serial.printf("[Bottle] for_statement: range end = %d (number)\n", loop_end_value);
-    } else if (check(c, TOKEN_IDENTIFIER)) {
-      token_t const_name = c->current;
-      advance(c);
-      if (identifier_equals_string(&const_name, "WIDTH")) {
-        loop_end_value = MATRIX_WIDTH;
-        Serial.printf("[Bottle] for_statement: range end = WIDTH (%d)\n", loop_end_value);
-      } else if (identifier_equals_string(&const_name, "HEIGHT")) {
-        loop_end_value = MATRIX_HEIGHT;
-        Serial.printf("[Bottle] for_statement: range end = HEIGHT (%d)\n", loop_end_value);
-      } else {
-        Serial.println("[Bottle] for_statement: ERROR - unknown constant in range");
-        error(c, "Unknown constant in range");
-        return;
-      }
-    } else {
-      Serial.println("[Bottle] for_statement: ERROR - expect number or constant for range end");
-      error(c, "Expect number or constant for range end");
-      return;
-    }
+    // Parse end expression - compile it to push value onto stack
+    expression(c);
+    Serial.println("[Bottle] for_statement: compiled range end expression");
 
     consume(c, TOKEN_RIGHT_PAREN, "Expect ')' after range");
     Serial.println("[Bottle] for_statement: range() parsed successfully");
@@ -1160,18 +1146,50 @@ static void for_statement(compiler_t* c) {
   // Generate runtime loop using bytecode
   // for (i = start; i < end; i++) { body }
 
-  // i = start
-  emit_constant(c, bottle_int(loop_start_value));
-  emit_opcode(c, OP_POP_SCALAR);
-  emit_byte(c, iter_idx);
+  uint16_t loop_start_offset;
 
-  uint16_t loop_start_offset = current_offset(c);
+  if (is_range_loop) {
+    // Stack now has: [start_value, end_value] (end on top)
+    // We need to pop them into temporary scalars
 
-  // Check: i < end
-  emit_opcode(c, OP_PUSH_SCALAR);
-  emit_byte(c, iter_idx);
-  emit_constant(c, bottle_int(loop_end_value));
-  emit_opcode(c, OP_LT);
+    // Allocate temporary scalar for loop_end
+    uint8_t end_idx = find_or_add_scalar(c, "__range_end");
+    if (end_idx == 255) {
+      error(c, "Too many variables");
+      return;
+    }
+
+    // Pop end_value from stack to __range_end
+    emit_opcode(c, OP_POP_SCALAR);
+    emit_byte(c, end_idx);
+
+    // Pop start_value from stack to iterator
+    emit_opcode(c, OP_POP_SCALAR);
+    emit_byte(c, iter_idx);
+
+    loop_start_offset = current_offset(c);
+
+    // Check: i < end (using the stored end value)
+    emit_opcode(c, OP_PUSH_SCALAR);
+    emit_byte(c, iter_idx);
+    emit_opcode(c, OP_PUSH_SCALAR);
+    emit_byte(c, end_idx);
+    emit_opcode(c, OP_LT);
+  } else {
+    // Original array iteration code
+    // i = start
+    emit_constant(c, bottle_int(loop_start_value));
+    emit_opcode(c, OP_POP_SCALAR);
+    emit_byte(c, iter_idx);
+
+    loop_start_offset = current_offset(c);
+
+    // Check: i < end
+    emit_opcode(c, OP_PUSH_SCALAR);
+    emit_byte(c, iter_idx);
+    emit_constant(c, bottle_int(loop_end_value));
+    emit_opcode(c, OP_LT);
+  }
 
   uint16_t exit_jump = emit_jump(c, OP_JUMP_IF_FALSE);
   emit_opcode(c, OP_POP); // Pop condition
@@ -1360,20 +1378,73 @@ static void state_declaration(compiler_t* c) {
     }
     
     consume(c, TOKEN_RIGHT_BRACKET, "Expect ']'");
-    
-    uint8_t initial_value = 0;
+
+    // Determine array element type and initial value
+    bottle_value_type_t element_type = BOTTLE_TYPE_INT;
+    union {
+      uint8_t int_value;
+      float float_value;
+    } initial_value;
+    initial_value.int_value = 0;
+
+    bool has_literal = false;
+    float literal_values[MATRIX_WIDTH];
+    uint8_t literal_count = 0;
+
     if (match(c, TOKEN_EQUAL)) {
-      if (!check(c, TOKEN_NUMBER)) {
-        error(c, "Expect number for initial value");
+      if (match(c, TOKEN_LEFT_BRACKET)) {
+        // Array literal: state arr[N] = [v1, v2, ...]
+        has_literal = true;
+
+        if (!check(c, TOKEN_RIGHT_BRACKET)) {
+          do {
+            if (literal_count >= length) {
+              error(c, "Too many values in array literal");
+              return;
+            }
+
+            if (!check(c, TOKEN_NUMBER)) {
+              error(c, "Expect number in array literal");
+              return;
+            }
+            advance(c);
+
+            // Detect float type if any value is float
+            if (c->previous.is_float) {
+              element_type = BOTTLE_TYPE_FLOAT;
+              literal_values[literal_count++] = c->previous.float_value;
+            } else {
+              literal_values[literal_count++] = (float)c->previous.int_value;
+            }
+          } while (match(c, TOKEN_COMMA));
+        }
+
+        consume(c, TOKEN_RIGHT_BRACKET, "Expect ']' after array literal");
+
+        // Pad remaining elements with 0
+        while (literal_count < length) {
+          literal_values[literal_count++] = 0.0f;
+        }
+
+      } else if (check(c, TOKEN_NUMBER)) {
+        // Single initial value: state arr[N] = value
+        advance(c);
+        if (c->previous.is_float) {
+          element_type = BOTTLE_TYPE_FLOAT;
+          initial_value.float_value = c->previous.float_value;
+        } else {
+          element_type = BOTTLE_TYPE_INT;
+          initial_value.int_value = (uint8_t)c->previous.int_value;
+        }
+      } else {
+        error(c, "Expect number or array literal for initial value");
         return;
       }
-      advance(c);
-      initial_value = (uint8_t)c->previous.int_value;
     }
-    
+
     // Add to compiler symbol table
     uint8_t idx = add_array(c, &name);
-    
+
     // Add to program metadata
     if (c->program->array_count >= BOTTLE_MAX_ARRAYS) {
       error(c, "Too many arrays");
@@ -1382,7 +1453,27 @@ static void state_declaration(compiler_t* c) {
     bottle_array_def_t* array = &c->program->arrays[c->program->array_count++];
     copy_identifier(array->name, &name, BOTTLE_NAME_LEN);
     array->length = length;
-    array->initial_value = initial_value;
+    array->element_type = element_type;
+    if (element_type == BOTTLE_TYPE_FLOAT) {
+      array->initial_value.float_value = initial_value.float_value;
+    } else {
+      array->initial_value.int_value = initial_value.int_value;
+    }
+
+    // Generate bytecode for array literal initialization if needed
+    if (has_literal) {
+      emit_byte(c, OP_INIT_ARRAY_LITERAL);
+      emit_byte(c, idx);
+      emit_byte(c, literal_count);
+
+      // Emit literal values as constants
+      for (uint8_t i = 0; i < literal_count; i++) {
+        uint16_t const_idx = add_constant(c, element_type == BOTTLE_TYPE_FLOAT
+                                            ? bottle_float(literal_values[i])
+                                            : bottle_int((int32_t)literal_values[i]));
+        emit_u16(c, const_idx);
+      }
+    }
     
   } else {
     // Scalar declaration

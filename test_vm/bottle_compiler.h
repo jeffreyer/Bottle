@@ -24,7 +24,11 @@ extern "C" {
 typedef struct {
   char name[BOTTLE_NAME_LEN];
   uint8_t length;
-  uint8_t initial_value;
+  bottle_value_type_t element_type;  // BOTTLE_TYPE_INT or BOTTLE_TYPE_FLOAT
+  union {
+    uint8_t int_value;    // For integer arrays
+    float float_value;    // For float arrays
+  } initial_value;
 } bottle_array_def_t;
 
 // Scalar declaration
