@@ -11,7 +11,16 @@
 #include "module_registry.h"
 #include <Preferences.h>
 
-uint8_t btn_status=0; //1 click,2 module,3 sleep,4 ble
+// Button status enumeration for better code readability
+enum ButtonStatus {
+  BTN_NONE = 0,      // No action
+  BTN_CLICK = 1,     // Short click (subpage switch)
+  BTN_MODULE = 2,    // Long press - switch module
+  BTN_SLEEP = 3,     // Very long press - enter sleep
+  BTN_BLE = 4        // Long press - toggle BLE config
+};
+
+ButtonStatus btn_status = BTN_NONE;
 uint32_t tm_touch_begin;
 uint8_t touch_hold_hint = 0;
 uint8_t touch_hold_cycle = 0; //0=module, 1=ble, 2=sleep
@@ -135,17 +144,17 @@ static bool touch_on_inactive_cb(touch_sensor_handle_t sens_handle, const touch_
     if (now-tm_touch_begin>800){
       // User held for more than 800ms, use the cycle indicator to determine action
       if (touch_hold_cycle == 0) {
-        btn_status=2;  // module
+        btn_status = BTN_MODULE;
       } else if (touch_hold_cycle == 1) {
-        btn_status=4;  // ble
+        btn_status = BTN_BLE;
       } else if (touch_hold_cycle == 2) {
-        btn_status=3;  // sleep (but won't actually sleep based on new check_btn logic)
+        btn_status = BTN_SLEEP;
       }
     }
     else if (now-tm_touch_begin>100){
-      btn_status=1;
+      btn_status = BTN_CLICK;
     }
-    
+
     tm_touch_begin=0;
     touch_hold_hint=0;
     touch_hold_cycle=0;
@@ -162,12 +171,14 @@ void check_btn(){
       touch_hold_cycle = 0;
       touch_hold_cycle_time = now;
       show_module_hold_hint();
+    } else if (held > 15000) {
+      btn_status = BTN_SLEEP;
     } else if (held > 800) {
       // Cycling mode: update icon every 1000ms
       if (now - touch_hold_cycle_time > 1000) {
         touch_hold_cycle = (touch_hold_cycle + 1) % 3;
         touch_hold_cycle_time = now;
-        
+
         if (touch_hold_cycle == 0) {
           show_module_hold_hint();
         } else if (touch_hold_cycle == 1) {
@@ -178,26 +189,26 @@ void check_btn(){
       }
     }
   }
-  if (btn_status==1){
-    btn_status=0;
+  if (btn_status == BTN_CLICK){
+    btn_status = BTN_NONE;
     if (ble_config_is_enabled()) {
       return;
     }
     subpage_index++;
   }
-  else if (btn_status==2){
+  else if (btn_status == BTN_MODULE){
     if (ble_config_is_enabled()) {
-      btn_status=0;
+      btn_status = BTN_NONE;
       return;
     }
-    btn_status=0;
+    btn_status = BTN_NONE;
     const module_descriptor_t* current = module_registry_get((uint8_t)page_index);
     int ret = 0;
     if (current && current->unload) {
       ret = current->unload();
     }
     // Serial.printf("unload %d:%d\n",page_index,ret);
-    
+
     page_index = module_registry_next_enabled(page_index);
     if (page_index < 0) {
       page_index = module_registry_normalize_index(0);
@@ -215,11 +226,11 @@ void check_btn(){
     // Serial.printf("setup %d:%d\n",page_index,ret);
 
   }
-  else if (btn_status==4){
-    btn_status=0;
+  else if (btn_status == BTN_BLE){
+    btn_status = BTN_NONE;
     ble_config_toggle();
   }
-  else if (btn_status==3){
+  else if (btn_status == BTN_SLEEP){
     // Sleep action - save config and enter deep sleep
     main_save_config();
     enter_deep_sleep();
