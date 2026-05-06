@@ -77,11 +77,106 @@ static int lua_led_hsv(lua_State* L) {
   return 3;
 }
 
+// led.palette(palette_table, index, brightness) -> returns r, g, b
+// Interpolates color from a palette table
+// palette_table format: {{index, r, g, b}, {index, r, g, b}, ...}
+static int lua_led_palette(lua_State* L) {
+  // Arg 1: palette table
+  luaL_checktype(L, 1, LUA_TTABLE);
+  // Arg 2: color index (0-255)
+  int color_index = (int)luaL_checknumber(L, 2);
+  // Arg 3: brightness (0-255, optional, default 255)
+  int brightness = 255;
+  if (lua_gettop(L) >= 3) {
+    brightness = (int)luaL_checknumber(L, 3);
+  }
+
+  // Clamp inputs
+  color_index = constrain(color_index, 0, 255);
+  brightness = constrain(brightness, 0, 255);
+
+  // Read palette entries
+  int palette_size = lua_rawlen(L, 1);
+  if (palette_size < 1) {
+    lua_pushnumber(L, 0);
+    lua_pushnumber(L, 0);
+    lua_pushnumber(L, 0);
+    return 3;
+  }
+
+  // Find the two entries to interpolate between
+  int entry1_idx = -1;
+  int entry1_pos = 0, entry1_r = 0, entry1_g = 0, entry1_b = 0;
+  int entry2_idx = -1;
+  int entry2_pos = 255, entry2_r = 0, entry2_g = 0, entry2_b = 0;
+
+  for (int i = 1; i <= palette_size; i++) {
+    lua_rawgeti(L, 1, i);  // Get palette[i]
+    if (lua_istable(L, -1)) {
+      lua_rawgeti(L, -1, 1);  // Get position
+      int pos = (int)lua_tonumber(L, -1);
+      lua_pop(L, 1);
+
+      if (pos <= color_index) {
+        entry1_idx = i;
+        entry1_pos = pos;
+        lua_rawgeti(L, -1, 2); entry1_r = (int)lua_tonumber(L, -1); lua_pop(L, 1);
+        lua_rawgeti(L, -1, 3); entry1_g = (int)lua_tonumber(L, -1); lua_pop(L, 1);
+        lua_rawgeti(L, -1, 4); entry1_b = (int)lua_tonumber(L, -1); lua_pop(L, 1);
+      }
+
+      if (pos >= color_index && entry2_idx == -1) {
+        entry2_idx = i;
+        entry2_pos = pos;
+        lua_rawgeti(L, -1, 2); entry2_r = (int)lua_tonumber(L, -1); lua_pop(L, 1);
+        lua_rawgeti(L, -1, 3); entry2_g = (int)lua_tonumber(L, -1); lua_pop(L, 1);
+        lua_rawgeti(L, -1, 4); entry2_b = (int)lua_tonumber(L, -1); lua_pop(L, 1);
+      }
+    }
+    lua_pop(L, 1);  // Pop palette[i]
+  }
+
+  // Handle edge cases
+  if (entry1_idx == -1) {
+    entry1_pos = entry2_pos;
+    entry1_r = entry2_r;
+    entry1_g = entry2_g;
+    entry1_b = entry2_b;
+  }
+  if (entry2_idx == -1) {
+    entry2_pos = entry1_pos;
+    entry2_r = entry1_r;
+    entry2_g = entry1_g;
+    entry2_b = entry1_b;
+  }
+
+  // Linear interpolation
+  float blend = 0.0f;
+  if (entry2_pos != entry1_pos) {
+    blend = (float)(color_index - entry1_pos) / (float)(entry2_pos - entry1_pos);
+  }
+
+  int r = entry1_r + (int)((entry2_r - entry1_r) * blend);
+  int g = entry1_g + (int)((entry2_g - entry1_g) * blend);
+  int b = entry1_b + (int)((entry2_b - entry1_b) * blend);
+
+  // Apply brightness
+  r = (r * brightness) / 255;
+  g = (g * brightness) / 255;
+  b = (b * brightness) / 255;
+
+  lua_pushnumber(L, r);
+  lua_pushnumber(L, g);
+  lua_pushnumber(L, b);
+  return 3;
+}
+
 static const luaL_Reg led_lib[] = {
   {"clear", lua_led_clear},
   {"show", lua_led_show},
   {"set", lua_led_set},
   {"hsv", lua_led_hsv},
+  {"palette", lua_led_palette},
   {NULL, NULL}
 };
 

@@ -46,6 +46,31 @@ for i = 0, 31 do
   prev_fft_value[i] = 0
 end
 
+-- Color Palettes (rhythm.h lines 260-278)
+-- green_to_red palette
+local green_red_palette = {
+  {0, 173, 255, 47},      -- green
+  {127, 255, 218, 0},     -- yellow
+  {255, 231, 0, 0}        -- red
+}
+
+-- purple_to_blue palette
+local purple_blue_palette = {
+  {0, 141, 0, 100},       -- purple
+  {127, 255, 192, 0},     -- yellow
+  {255, 0, 5, 255}        -- blue
+}
+
+-- red_to_mistyrose palette
+local red_mistyrose_palette = {
+  {0, 255, 228, 225},     -- MistyRose
+  {64, 255, 69, 0},       -- OrangeRed
+  {127, 255, 0, 0},       -- red
+  {128, 255, 0, 0},       -- red
+  {192, 255, 69, 0},      -- OrangeRed
+  {255, 255, 228, 225}    -- MistyRose
+}
+
 -- FFT frequency band grouping (ported from audio_fft.cpp)
 -- Groups 512 FFT bins into 17 bands with boost for higher frequencies
 local fft_band_ranges = {
@@ -135,8 +160,8 @@ end
 function green_red_bars(band, bar)
   for y = 0, bar - 1 do
     local mx, my = get_cord(band, y)
-    local hue = math.floor(y * 80 / HEIGHT + 70)
-    local r, g, b = led.hsv(hue, 255, 180)
+    local color_index = math.floor(y * 255 / bar)
+    local r, g, b = led.palette(green_red_palette, color_index, 180)
     led.set(mx, my, r, g, b)
   end
 end
@@ -177,6 +202,16 @@ function changing_bars(band, bar)
   end
 end
 
+function center_bars(band, bar)
+  if bar % 2 == 0 then bar = bar - 1 end
+  local y_start = math.floor((HEIGHT - bar) / 2)
+  for y = y_start, y_start + bar do
+    local color_index = math.max(0, math.min(255, (y - y_start) * 255 / bar))
+    local r, g, b = led.palette(red_mistyrose_palette, color_index, 180)
+    led.set(band, y, r, g, b)
+  end
+end
+
 -- Peak rendering patterns (rhythm.h lines 343-369)
 function yellow_white_peak(band)
   local mx, my = get_cord(band, peak_height[band])
@@ -204,8 +239,8 @@ end
 
 function changing_peak(band)
   local mx, my = get_cord(band, peak_height[band])
-  local hue = math.floor(peak_height[band] * 255 / HEIGHT)
-  local r, g, b = led.hsv(hue, 255, 180)
+  local color_index = math.floor(peak_height[band] * 255 / HEIGHT)
+  local r, g, b = led.palette(purple_blue_palette, color_index, 180)
   led.set(mx, my, r, g, b)
 end
 
