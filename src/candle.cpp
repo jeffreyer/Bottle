@@ -227,7 +227,10 @@ static void candle_orientation(bool* flip_y, int8_t* lean_x) {
     }
 
     // Y-axis controls only upright/upside-down. X tilt is intentionally ignored.
-    *flip_y = (gy < 0.0f);
+    if (gy<-0.7)
+        *flip_y=true;
+    else if (gy>0.7)
+        *flip_y=false;       
     *lean_x = 0;
 }
 
@@ -272,7 +275,7 @@ int candle_loop()
 
     t += dt * 4250.0f;
 
-    bool flip_y = false;
+    static bool flip_y = false;
     int8_t lean_raw = 0;
     candle_orientation(&flip_y, &lean_raw);
 
