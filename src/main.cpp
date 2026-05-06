@@ -281,8 +281,6 @@ void check_cmd(){
 
 void setup() {
   Serial.begin(115200);
-  delay(5000);  // Wait for serial monitor to connect
-  Serial.println("\n\n=== Bottle System Starting ===");
 
   pinMode(LED_SWITCH_PIN, OUTPUT);
   digitalWrite(LED_SWITCH_PIN, LOW);

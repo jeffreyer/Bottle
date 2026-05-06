@@ -49,7 +49,11 @@ typedef bool (*on_inactive)(touch_sensor_handle_t sens_handle, const touch_inact
 void touch_sleep_init(on_active act,on_inactive inact){
   touch_sensor_handle_t sens_handle = NULL;
   touch_channel_handle_t chan_handle;
-  touch_sensor_sample_config_t sample_cfg[TOUCH_SAMPLE_CFG_NUM] = {TOUCH_SENSOR_V2_DEFAULT_SAMPLE_CONFIG(500, TOUCH_VOLT_LIM_L_0V5, TOUCH_VOLT_LIM_H_2V2)};
+
+  // 正常运行时的采样配置
+  touch_sensor_sample_config_t sample_cfg[TOUCH_SAMPLE_CFG_NUM] = {
+    TOUCH_SENSOR_V2_DEFAULT_SAMPLE_CONFIG(500, TOUCH_VOLT_LIM_L_0V5, TOUCH_VOLT_LIM_H_2V2)
+  };
   touch_sensor_config_t sens_cfg = TOUCH_SENSOR_DEFAULT_BASIC_CONFIG(1, sample_cfg);
   ESP_ERROR_CHECK(touch_sensor_new_controller(&sens_cfg, &sens_handle));
 
@@ -60,7 +64,6 @@ void touch_sleep_init(on_active act,on_inactive inact){
   };
   for (int i = 0; i < 1; i++) {
       ESP_ERROR_CHECK(touch_sensor_new_channel(sens_handle, s_channel_id[i], &chan_cfg, &chan_handle));
-      /* Display the touch channel corresponding GPIO number, you can also know from `touch_sensor_channel.h` */
       touch_chan_info_t chan_info = {};
       ESP_ERROR_CHECK(touch_sensor_get_channel_info(chan_handle, &chan_info));
       printf("Touch [CH %d] enabled on GPIO%d\n", s_channel_id[i], chan_info.chan_gpio);
@@ -69,24 +72,41 @@ void touch_sleep_init(on_active act,on_inactive inact){
   touch_sensor_filter_config_t filter_cfg = TOUCH_SENSOR_DEFAULT_FILTER_CONFIG();
   ESP_ERROR_CHECK(touch_sensor_config_filter(sens_handle, &filter_cfg));
 
-  /* (Optional) Do the initial scanning to initialize the touch channel data
-    * Without this step, the channel data in the first read will be invalid
-    */
   touch_do_initial_scanning(sens_handle, chan_handle);
 
-  /* (Optional) Register the callbacks, optional for light/deep sleep wakeup */
   touch_event_callbacks_t callbacks = {
       .on_active = act,
       .on_inactive = inact,
   };
   ESP_ERROR_CHECK(touch_sensor_register_callbacks(sens_handle, &callbacks, NULL));
 
-  touch_sleep_config_t slp_cfg = TOUCH_SENSOR_DEFAULT_DSLP_CONFIG();
+  // 深度睡眠时的超低功耗配置
+  // 目标：实现接近18uA的功耗
+  // 策略：极大增加测量间隔，最小化充电次数和电压
+  // 正常运行：meas_interval=32us，深度睡眠：meas_interval=16000us（500倍）
+  // 正常运行：charge_times=500，深度睡眠：charge_times=50（10倍降低）
+  static touch_sensor_sample_config_t deep_sleep_sample_cfg[TOUCH_SAMPLE_CFG_NUM] = {
+    TOUCH_SENSOR_V2_DEFAULT_SAMPLE_CONFIG(50, TOUCH_VOLT_LIM_L_0V5, TOUCH_VOLT_LIM_H_0V9)
+  };
+  static touch_sensor_config_dslp_t deep_sleep_sens_cfg = {
+    .power_on_wait_us = 128,        // 降低上电等待时间（从256降到128）
+    .meas_interval_us = 16000.0,    // 测量间隔从3200us增加到16000us（16ms，约0.2%占空比）
+    .max_meas_time_us = 0,          // 不限制测量时间
+    .sample_cfg_num = 1,
+    .sample_cfg = deep_sleep_sample_cfg,
+  };
+
+  // 配置深度睡眠唤醒
+  touch_sleep_config_t slp_cfg = {
+    .slp_wakeup_lvl = TOUCH_DEEP_SLEEP_WAKEUP,
+    .deep_slp_chan = chan_handle,  // 指定唤醒通道
+    .deep_slp_thresh = {2000},     // 深度睡眠阈值
+    .deep_slp_sens_cfg = &deep_sleep_sens_cfg,  // 使用超低功耗配置
+  };
   ESP_ERROR_CHECK(touch_sensor_config_sleep_wakeup(sens_handle, &slp_cfg));
 
-  /* Step 5: Enable touch sensor controller and start continuous scanning before entering light sleep */
   ESP_ERROR_CHECK(touch_sensor_enable(sens_handle));
   ESP_ERROR_CHECK(touch_sensor_start_continuous_scanning(sens_handle));
 
-  ESP_LOGI(TAG, "touch wakeup source is ready");
+  ESP_LOGI(TAG, "touch wakeup source is ready with ultra-low power deep sleep config");
 }
