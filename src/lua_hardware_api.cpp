@@ -86,24 +86,56 @@ static const luaL_Reg led_lib[] = {
 };
 
 // ============================================================================
-// Spectrum API
+// FFT API (raw magnitude data)
 // ============================================================================
 
-// spectrum.get(index) -> returns float value
-static int lua_spectrum_get(lua_State* L) {
+// fft.get(index) -> returns magnitude at index
+static int lua_fft_get(lua_State* L) {
   int index = (int)luaL_checknumber(L, 1);
-  const float* spectrum = audio_fft_get_spectrum();
-  if (index >= 0 && index < 17) {
-    lua_pushnumber(L, spectrum[index]);
+  const double* magnitude = audio_fft_get_magnitude();
+  int length = audio_fft_get_magnitude_length();
+
+  if (index >= 0 && index < length) {
+    lua_pushnumber(L, magnitude[index]);
   } else {
     lua_pushnumber(L, 0.0);
   }
   return 1;
 }
 
-// spectrum.count() -> returns 17
+// fft.count() -> returns FFT bin count (512)
+static int lua_fft_count(lua_State* L) {
+  lua_pushnumber(L, audio_fft_get_magnitude_length());
+  return 1;
+}
+
+static const luaL_Reg fft_lib[] = {
+  {"get", lua_fft_get},
+  {"count", lua_fft_count},
+  {NULL, NULL}
+};
+
+// ============================================================================
+// Spectrum API (deprecated, use fft instead)
+// ============================================================================
+
+// spectrum.get(index) -> returns magnitude value
+static int lua_spectrum_get(lua_State* L) {
+  int index = (int)luaL_checknumber(L, 1);
+  const double* magnitude = audio_fft_get_magnitude();
+  int length = audio_fft_get_magnitude_length();
+
+  if (index >= 0 && index < length) {
+    lua_pushnumber(L, magnitude[index]);
+  } else {
+    lua_pushnumber(L, 0.0);
+  }
+  return 1;
+}
+
+// spectrum.count() -> returns FFT bin count (512)
 static int lua_spectrum_count(lua_State* L) {
-  lua_pushnumber(L, 17);
+  lua_pushnumber(L, audio_fft_get_magnitude_length());
   return 1;
 }
 
@@ -185,7 +217,11 @@ void register_lua_hardware_apis(lua_State* L) {
   luaL_newlib(L, led_lib);
   lua_setglobal(L, "led");
 
-  // Register spectrum library
+  // Register fft library
+  luaL_newlib(L, fft_lib);
+  lua_setglobal(L, "fft");
+
+  // Register spectrum library (deprecated)
   luaL_newlib(L, spectrum_lib);
   lua_setglobal(L, "spectrum");
 

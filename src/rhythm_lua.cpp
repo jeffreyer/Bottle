@@ -46,6 +46,72 @@ for i = 0, 31 do
   prev_fft_value[i] = 0
 end
 
+-- FFT frequency band grouping (ported from audio_fft.cpp)
+-- Groups 512 FFT bins into 17 bands with boost for higher frequencies
+local fft_band_ranges = {
+  {6, 7},      -- Band 0: bins 6-7, avg /2
+  {8, 10},     -- Band 1: bins 8-10, avg /3
+  {11, 15},    -- Band 2: bins 11-15, avg /5
+  {16, 20},    -- Band 3: bins 16-20, avg /5
+  {21, 25},    -- Band 4: bins 21-25, avg /5
+  {26, 31},    -- Band 5: bins 26-31, avg /6
+  {32, 37},    -- Band 6: bins 32-37, avg /6
+  {38, 43},    -- Band 7: bins 38-43, avg /6
+  {44, 49},    -- Band 8: bins 44-49, avg /6
+  {50, 55},    -- Band 9: bins 50-55, avg /6
+  {56, 61},    -- Band 10: bins 56-61, avg /6
+  {62, 67},    -- Band 11: bins 62-67, avg /6
+  {68, 73},    -- Band 12: bins 68-73, avg /6
+  {74, 79},    -- Band 13: bins 74-79, avg /6
+  {80, 85},    -- Band 14: bins 80-85, avg /6
+  {86, 91},    -- Band 15: bins 86-91, avg /6
+  {92, 133}    -- Band 16: max of bins 92-133 in groups of 6, then avg /6
+}
+
+-- Boost multipliers for each band (from original audio_fft.cpp)
+local fft_band_boost = {
+  0.4, 0.5, 0.5, 0.5, 0.6, 0.8, 1.1, 1.1, 1.5,
+  1.7, 3.0, 3.4, 3.6, 3.6, 3.8, 3.8, 1.0
+}
+
+-- Process raw FFT data into frequency bands
+function process_fft_bands()
+  local bands = {}
+
+  -- Process bands 0-15 (average bins in range)
+  for band_idx = 1, 16 do
+    local range = fft_band_ranges[band_idx]
+    local start_bin = range[1]
+    local end_bin = range[2]
+    local sum = 0
+    local count = end_bin - start_bin + 1
+
+    for bin = start_bin, end_bin do
+      sum = sum + fft.get(bin)
+    end
+
+    local avg = sum / count
+    -- Apply boost and scaling: boost[i] * 12.0 / 50.0
+    local scaled = avg * fft_band_boost[band_idx] * 12.0 / 50.0
+    bands[band_idx - 1] = math.min(255, math.max(0, math.floor(scaled)))
+  end
+
+  -- Band 16: max of bins 92-133 in groups of 6
+  local high = 0
+  high = math.max(high, fft.get(92) + fft.get(93) + fft.get(94) + fft.get(95) + fft.get(96) + fft.get(97))
+  high = math.max(high, fft.get(98) + fft.get(99) + fft.get(100) + fft.get(101) + fft.get(102) + fft.get(103))
+  high = math.max(high, fft.get(104) + fft.get(105) + fft.get(106) + fft.get(107) + fft.get(108) + fft.get(109))
+  high = math.max(high, fft.get(110) + fft.get(111) + fft.get(112) + fft.get(113) + fft.get(114) + fft.get(115))
+  high = math.max(high, fft.get(116) + fft.get(117) + fft.get(118) + fft.get(119) + fft.get(120) + fft.get(121))
+  high = math.max(high, fft.get(122) + fft.get(123) + fft.get(124) + fft.get(125) + fft.get(126) + fft.get(127))
+  high = math.max(high, fft.get(128) + fft.get(129) + fft.get(130) + fft.get(131) + fft.get(132) + fft.get(133))
+  local avg_high = high / 6
+  local scaled_high = avg_high * fft_band_boost[17] * 12.0 / 50.0
+  bands[16] = math.min(255, math.max(0, math.floor(scaled_high)))
+
+  return bands
+end
+
 -- Coordinate transformation based on direction (rhythm.h lines 280-297)
 function get_cord(x, y)
   local mx, my
@@ -185,17 +251,19 @@ function loop()
   end
 
   -- Process FFT data (rhythm.h lines 400-421)
+  local fft_bands = process_fft_bands()  -- Get 17 processed bands
+
   if direction % 2 == 1 then
     -- Vertical orientation: merge adjacent bands
     for i = 0, HEIGHT - 1 do
       local fft_value
-      if i * 2 + 1 < WIDTH then
-        fft_value = (spectrum.get(i * 2) + spectrum.get(i * 2 + 1)) / 2
+      if i * 2 + 1 < 17 then
+        fft_value = (fft_bands[i * 2] + fft_bands[i * 2 + 1]) / 2
       else
-        fft_value = spectrum.get(i * 2)
+        fft_value = fft_bands[i * 2]
       end
       fft_value = ((prev_fft_value[i] * 3) + fft_value) / 4
-      bar_height[i] = math.floor(fft_value / (255 / (WIDTH - 1)))
+      bar_height[i] = math.floor(fft_value / (255 // (WIDTH - 1)))
       if bar_height[i] > peak_height[i] then
         peak_height[i] = math.min(WIDTH - 1, bar_height[i])
       end
@@ -204,9 +272,9 @@ function loop()
   else
     -- Horizontal orientation: use all bands
     for i = 0, WIDTH - 1 do
-      local fft_value = spectrum.get(i)
+      local fft_value = fft_bands[i] or 0
       fft_value = ((prev_fft_value[i] * 3) + fft_value) / 4
-      bar_height[i] = math.floor(fft_value / (255 / (HEIGHT - 1)))
+      bar_height[i] = math.floor(fft_value / (255 // (HEIGHT - 1)))
       if bar_height[i] > peak_height[i] then
         peak_height[i] = math.min(HEIGHT - 1, bar_height[i])
       end

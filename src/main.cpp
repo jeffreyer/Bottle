@@ -1,17 +1,11 @@
 #include "common.h"
-#include "rhythm.h"
 #include "rgb.h"
 #include "touch.h"
 #include "touch_icons.h"
-// #include "record.h"
 #include <Wire.h>
 #include "esp_sleep.h"
 #include "sim_manager.h"
 #include "sleep_manager.h"
-#include "candle.h"
-#include "text.h"
-#include "sandglass.h"
-#include "breakout.h"
 #include "ble_config.h"
 #include "app_control.h"
 #include "module_registry.h"
@@ -269,12 +263,7 @@ void check_cmd(){
       Serial.printf("set sleep delay seconds:%d",sec);
     } else if (command.startsWith("status")) {
       Serial.println(module_registry_status_json());
-    } else if (command.startsWith("manifest=")) {
-      int index = command.substring(9).toInt();
-      Serial.println(module_registry_manifest_json(index));
-    } else if (command.startsWith("rhythm_status")) {
-      Serial.println(module_registry_manifest_json(0));
-    }
+    } 
   }
 
 }

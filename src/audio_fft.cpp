@@ -17,7 +17,6 @@ struct AudioFFTContext {
   TaskHandle_t fft_task = nullptr;
   int16_t* dma_buffer = nullptr;
   volatile bool exit_requested = false;
-  float spectrum[17];
 };
 
 AudioFFTContext g_ctx;
@@ -27,28 +26,10 @@ double g_imag[DMA_BUF_LEN];
 double g_fft_mag[DMA_BUF_LEN];
 ArduinoFFT<double> g_fft(g_real, g_imag, DMA_BUF_LEN, SAMPLE_FREQ);
 
-double fft_add(int from, int to) {
-  double result = 0.0;
-  for (int i = from; i <= to; i++) {
-    result += g_fft_mag[i];
-  }
-  return result;
-}
-
-void publish_spectrum(const double* fft_data) {
-  static const float boost[17] = {
-    0.4f, 0.5f, 0.5f, 0.5f, 0.6f, 0.8f, 1.1f, 1.1f, 1.5f,
-    1.7f, 3.0f, 3.4f, 3.6f, 3.6f, 3.8f, 3.8f, 1.0f
-  };
-
-  for (int i = 0; i < 17; i++) {
-    float v = (float)fft_data[i] * boost[i] * 12.0f / 50.0f;
-    g_ctx.spectrum[i] = constrain((int)v, 0, 255);
-  }
-}
-
 void fft_task_entry(void*) {
   while (!g_ctx.exit_requested) {
+    delay(10);
+    
     size_t bytes_read = 0;
     if (i2s_channel_read(g_ctx.rx_handle, g_ctx.dma_buffer, DMA_BUF_LEN * sizeof(int16_t), &bytes_read, portMAX_DELAY) != ESP_OK) {
       continue;
@@ -65,38 +46,8 @@ void fft_task_entry(void*) {
     for (int i = 0; i < DMA_BUF_LEN; i++) {
       g_fft_mag[i] = abs(g_real[i]);
     }
-
-    double fft_data[17];
-    fft_data[0]  = fft_add(6, 7) / 2;
-    fft_data[1]  = fft_add(8, 10) / 3;
-    fft_data[2]  = fft_add(11, 15) / 5;
-    fft_data[3]  = fft_add(16, 20) / 5;
-    fft_data[4]  = fft_add(21, 25) / 5;
-    fft_data[5]  = fft_add(26, 31) / 6;
-    fft_data[6]  = fft_add(32, 37) / 6;
-    fft_data[7]  = fft_add(38, 43) / 6;
-    fft_data[8]  = fft_add(44, 49) / 6;
-    fft_data[9]  = fft_add(50, 55) / 6;
-    fft_data[10] = fft_add(56, 61) / 6;
-    fft_data[11] = fft_add(62, 67) / 6;
-    fft_data[12] = fft_add(68, 73) / 6;
-    fft_data[13] = fft_add(74, 79) / 6;
-    fft_data[14] = fft_add(80, 85) / 6;
-    fft_data[15] = fft_add(86, 91) / 6;
-
-    double high = fft_add(92, 97);
-    high = max(high, fft_add(98, 103));
-    high = max(high, fft_add(104, 109));
-    high = max(high, fft_add(110, 115));
-    high = max(high, fft_add(116, 121));
-    high = max(high, fft_add(122, 127));
-    high = max(high, fft_add(128, 133));
-    fft_data[16] = high / 6;
-
-    publish_spectrum(fft_data);
   }
 
-  g_ctx.fft_task = nullptr;
   vTaskDelete(nullptr);
 }
 
@@ -173,8 +124,12 @@ void audio_fft_stop() {
   Serial.println("[audio_fft] Stopped");
 }
 
-const float* audio_fft_get_spectrum() {
-  return g_ctx.spectrum;
+const double* audio_fft_get_magnitude() {
+  return g_fft_mag;
+}
+
+int audio_fft_get_magnitude_length() {
+  return DMA_BUF_LEN;
 }
 
 void audio_fft_cleanup() {
