@@ -15,7 +15,6 @@
 #include "ble_config.h"
 #include "app_control.h"
 #include "module_registry.h"
-#include "module_storage.h"
 #include <Preferences.h>
 
 uint8_t btn_status=0; //1 click,2 module,3 sleep,4 ble
@@ -297,12 +296,6 @@ void setup() {
 
   page_index = module_registry_normalize_index(page_index);
   Serial.printf("[Setup] Page index: %d\n", page_index);
-
-  module_storage_init();
-  Serial.println("[Setup] Module storage initialized");
-
-  module_storage_ensure_defaults();
-  Serial.println("[Setup] Module defaults ensured");
 
   rgb_init();
   Serial.println("[Setup] RGB initialized");

@@ -1,7 +1,7 @@
 #include "module_registry.h"
 #include "breakout.h"
 #include "candle.h"
-#include "rhythm_module.h"
+#include "rhythm_lua.h"
 #include "sandglass.h"
 #include "sim_manager.h"
 #include <Preferences.h>
@@ -23,7 +23,7 @@ static const module_config_item_t breakout_configs[] = {
 };
 
 static const module_descriptor_t k_modules[] = {
-  {"rhythm", "Rhythm", "2.0.0", "Bottle", "Runtime-style audio spectrum visualizer", "native_host", "bottle-vm@0.1", "/rhythm_spectrum/main.bottle", setup_rhythm_module, unload_rhythm_module, loop_rhythm_module, nullptr, 0, true},
+  {"rhythm", "Rhythm", "3.0.0", "Bottle", "Lua-powered audio spectrum visualizer", "lua", "lua-5.4.7", nullptr, setup_rhythm_lua_module, unload_rhythm_lua_module, loop_rhythm_lua_module, nullptr, 0, true},
   {"water", "Water", "1.0.0", "Bottle", "Gravity liquid simulation", "native", "native", nullptr, setup_fluid, unload_fluid, fluid_loop, water_configs, (uint8_t)(sizeof(water_configs) / sizeof(water_configs[0])), true},
   {"candle", "Candle", "1.0.0", "Bottle", "Gravity-aware candle flame", "native", "native", nullptr, setup_candle, unload_candle, candle_loop, candle_configs, (uint8_t)(sizeof(candle_configs) / sizeof(candle_configs[0])), true},
   {"sandglass", "Sandglass", "1.0.0", "Bottle", "Gravity sandglass", "native", "native", nullptr, setup_sand, unload_sand, sand_loop, sand_configs, (uint8_t)(sizeof(sand_configs) / sizeof(sand_configs[0])), true},
@@ -145,11 +145,11 @@ String module_registry_manifest_json(int32_t index) {
   s += ",\"builtin\":" + String(module->built_in ? "true" : "false");
   s += ",\"enabled\":" + String(module_registry_is_enabled((uint8_t)index) ? "true" : "false");
   if (String(module->id) == "rhythm") {
-    s += ",\"runtime_status\":" + rhythm_module_runtime_status_json();
+    s += ",\"runtime_status\":" + rhythm_lua_module_runtime_status_json();
   }
   s += ",\"configs\":";
   if (String(module->id) == "rhythm") {
-    s += rhythm_module_configs_json();
+    s += rhythm_lua_module_configs_json();
   } else {
     s += "[";
     for (uint8_t i = 0; i < module->config_count; i++) {
