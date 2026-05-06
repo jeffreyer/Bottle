@@ -2,11 +2,11 @@
 
 #include <Arduino.h>
 #include <FastLED.h>
-#include <arduinoFFT.h>
 #include "app_control.h"
+#include "audio_fft.h"
 #include "common.h"
-#include "driver/i2s_pdm.h"
 #include "gravity.h"
+#include "lua_hardware_api.h"
 
 extern "C" {
 #include "lua.h"
@@ -14,325 +14,17 @@ extern "C" {
 #include "lauxlib.h"
 }
 
-#define I2S_WS_PIN 10
-#define I2S_BCK_PIN 7
-#define DMA_BUF_COUNT 6
-#define DMA_BUF_LEN 512
-#define SAMPLE_FREQ 16000
-
 namespace {
 
 const char* kDefaultConfigKey = "style";
 
 struct RhythmLuaHost {
   lua_State* L = nullptr;
-  i2s_chan_handle_t rx_handle = nullptr;
-  TaskHandle_t fft_task = nullptr;
-  int16_t* dma_buffer = nullptr;
-  volatile bool exit_requested = false;
   int saved_subpage = -1;
   bool script_loaded = false;
-
-  // Sensor data accessible from Lua
-  float spectrum[MATRIX_WIDTH];
-  float gravity_x, gravity_y, gravity_z;
-  bool gravity_valid;
 };
 
 RhythmLuaHost g_host;
-
-double g_real[DMA_BUF_LEN];
-double g_imag[DMA_BUF_LEN];
-double g_fft_mag[DMA_BUF_LEN];
-ArduinoFFT<double> g_fft(g_real, g_imag, DMA_BUF_LEN, SAMPLE_FREQ);
-
-double fft_add(int from, int to) {
-  double result = 0.0;
-  for (int i = from; i <= to; i++) {
-    result += g_fft_mag[i];
-  }
-  return result;
-}
-
-void publish_spectrum(const double* fft_data) {
-  static const float boost[MATRIX_WIDTH] = {
-    0.4f, 0.5f, 0.5f, 0.5f, 0.6f, 0.8f, 1.1f, 1.1f, 1.5f,
-    1.7f, 3.0f, 3.4f, 3.6f, 3.6f, 3.8f, 3.8f, 1.0f
-  };
-
-  for (int i = 0; i < MATRIX_WIDTH; i++) {
-    float v = (float)fft_data[i] * boost[i] * 12.0f / 50.0f;
-    g_host.spectrum[i] = constrain((int)v, 0, 255);
-  }
-}
-
-void fft_task_entry(void*) {
-  while (!g_host.exit_requested) {
-    size_t bytes_read = 0;
-    if (i2s_channel_read(g_host.rx_handle, g_host.dma_buffer, DMA_BUF_LEN * sizeof(int16_t), &bytes_read, portMAX_DELAY) != ESP_OK) {
-      continue;
-    }
-
-    for (int i = 0; i < DMA_BUF_LEN; i++) {
-      g_real[i] = g_host.dma_buffer[i];
-      g_imag[i] = 0.0;
-    }
-
-    g_fft.windowing(FFT_WIN_TYP_HAMMING, FFT_FORWARD);
-    g_fft.compute(FFT_FORWARD);
-    g_fft.complexToMagnitude();
-    for (int i = 0; i < DMA_BUF_LEN; i++) {
-      g_fft_mag[i] = abs(g_real[i]);
-    }
-
-    double fft_data[MATRIX_WIDTH];
-    fft_data[0]  = fft_add(6, 7) / 2;
-    fft_data[1]  = fft_add(8, 10) / 3;
-    fft_data[2]  = fft_add(11, 15) / 5;
-    fft_data[3]  = fft_add(16, 20) / 5;
-    fft_data[4]  = fft_add(21, 25) / 5;
-    fft_data[5]  = fft_add(26, 31) / 6;
-    fft_data[6]  = fft_add(32, 37) / 6;
-    fft_data[7]  = fft_add(38, 43) / 6;
-    fft_data[8]  = fft_add(44, 49) / 6;
-    fft_data[9]  = fft_add(50, 55) / 6;
-    fft_data[10] = fft_add(56, 61) / 6;
-    fft_data[11] = fft_add(62, 67) / 6;
-    fft_data[12] = fft_add(68, 73) / 6;
-    fft_data[13] = fft_add(74, 79) / 6;
-    fft_data[14] = fft_add(80, 85) / 6;
-    fft_data[15] = fft_add(86, 91) / 6;
-
-    double high = fft_add(92, 97);
-    high = max(high, fft_add(98, 103));
-    high = max(high, fft_add(104, 109));
-    high = max(high, fft_add(110, 115));
-    high = max(high, fft_add(116, 121));
-    high = max(high, fft_add(122, 127));
-    high = max(high, fft_add(128, 133));
-    fft_data[16] = high / 6;
-
-    publish_spectrum(fft_data);
-  }
-
-  g_host.fft_task = nullptr;
-  vTaskDelete(nullptr);
-}
-
-int start_audio_capture() {
-  g_host.exit_requested = false;
-  if (!g_host.dma_buffer) {
-    g_host.dma_buffer = (int16_t*)malloc(DMA_BUF_LEN * sizeof(int16_t));
-    if (!g_host.dma_buffer) return -1;
-  }
-
-  i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
-  chan_cfg.id = I2S_NUM_0;
-  chan_cfg.dma_desc_num = DMA_BUF_COUNT;
-  chan_cfg.dma_frame_num = DMA_BUF_LEN;
-  if (i2s_new_channel(&chan_cfg, nullptr, &g_host.rx_handle) != ESP_OK) return -2;
-
-  i2s_pdm_rx_config_t pdm_cfg = {
-    .clk_cfg = I2S_PDM_RX_CLK_DEFAULT_CONFIG(SAMPLE_FREQ),
-    .slot_cfg = {
-      .data_bit_width = I2S_DATA_BIT_WIDTH_16BIT,
-      .slot_mode = I2S_SLOT_MODE_MONO,
-      .slot_mask = I2S_PDM_SLOT_LEFT,
-    },
-    .gpio_cfg = {
-      .clk = (gpio_num_t)I2S_BCK_PIN,
-      .din = (gpio_num_t)I2S_WS_PIN,
-    },
-  };
-  if (i2s_channel_init_pdm_rx_mode(g_host.rx_handle, &pdm_cfg) != ESP_OK) return -3;
-  if (i2s_channel_enable(g_host.rx_handle) != ESP_OK) return -4;
-
-  xTaskCreatePinnedToCore(fft_task_entry, "RhythmFFT", 10000, nullptr, 1, &g_host.fft_task, 0);
-  return 0;
-}
-
-void stop_audio_capture() {
-  g_host.exit_requested = true;
-  delay(50);
-
-  if (g_host.rx_handle) {
-    i2s_channel_disable(g_host.rx_handle);
-    i2s_del_channel(g_host.rx_handle);
-    g_host.rx_handle = nullptr;
-  }
-
-  if (g_host.dma_buffer) {
-    free(g_host.dma_buffer);
-    g_host.dma_buffer = nullptr;
-  }
-}
-
-void update_gravity_snapshot() {
-  gravity_xy_t g = gravity_get();
-  g_host.gravity_valid = g.valid;
-  g_host.gravity_x = g.gx;
-  g_host.gravity_y = g.gy;
-  g_host.gravity_z = g.gz;
-}
-
-// Lua C API bindings
-
-// led.clear()
-static int lua_led_clear(lua_State* L) {
-  FastLED.clear();
-  return 0;
-}
-
-// led.show()
-static int lua_led_show(lua_State* L) {
-  FastLED.show();
-  return 0;
-}
-
-// led.set(x, y, r, g, b)
-static int lua_led_set(lua_State* L) {
-  int x = (int)luaL_checknumber(L, 1);
-  int y = (int)luaL_checknumber(L, 2);
-  int r = (int)luaL_checknumber(L, 3);
-  int g = (int)luaL_checknumber(L, 4);
-  int b = (int)luaL_checknumber(L, 5);
-
-  if (x >= 0 && x < MATRIX_WIDTH && y >= 0 && y < MATRIX_HEIGHT) {
-    leds(x, y) = CRGB(r, g, b);
-  }
-  return 0;
-}
-
-// led.hsv(h, s, v) -> returns r, g, b
-static int lua_led_hsv(lua_State* L) {
-  int h = (int)luaL_checknumber(L, 1);
-  int s = (int)luaL_checknumber(L, 2);
-  int v = (int)luaL_checknumber(L, 3);
-
-  CRGB color = CHSV(h, s, v);
-  lua_pushnumber(L, color.r);
-  lua_pushnumber(L, color.g);
-  lua_pushnumber(L, color.b);
-  return 3;
-}
-
-// spectrum.get(index) -> returns float value
-static int lua_spectrum_get(lua_State* L) {
-  int index = (int)luaL_checknumber(L, 1);
-  if (index >= 0 && index < MATRIX_WIDTH) {
-    lua_pushnumber(L, g_host.spectrum[index]);
-  } else {
-    lua_pushnumber(L, 0.0);
-  }
-  return 1;
-}
-
-// spectrum.count() -> returns WIDTH
-static int lua_spectrum_count(lua_State* L) {
-  lua_pushnumber(L, MATRIX_WIDTH);
-  return 1;
-}
-
-// gravity.get() -> returns x, y, z, valid
-static int lua_gravity_get(lua_State* L) {
-  lua_pushnumber(L, g_host.gravity_x);
-  lua_pushnumber(L, g_host.gravity_y);
-  lua_pushnumber(L, g_host.gravity_z);
-  lua_pushboolean(L, g_host.gravity_valid);
-  return 4;
-}
-
-// config.get(key) -> returns int value
-static int lua_config_get(lua_State* L) {
-  const char* key = luaL_checkstring(L, 1);
-  int value = load_config(key);
-  lua_pushnumber(L, value);
-  return 1;
-}
-
-// time.millis() -> returns milliseconds since boot
-static int lua_time_millis(lua_State* L) {
-  lua_pushnumber(L, millis());
-  return 1;
-}
-
-// math.clamp(value, min, max)
-static int lua_math_clamp(lua_State* L) {
-  lua_Number value = luaL_checknumber(L, 1);
-  lua_Number min_val = luaL_checknumber(L, 2);
-  lua_Number max_val = luaL_checknumber(L, 3);
-  lua_pushnumber(L, constrain(value, min_val, max_val));
-  return 1;
-}
-
-// Register LED API
-static const luaL_Reg led_lib[] = {
-  {"clear", lua_led_clear},
-  {"show", lua_led_show},
-  {"set", lua_led_set},
-  {"hsv", lua_led_hsv},
-  {NULL, NULL}
-};
-
-// Register spectrum API
-static const luaL_Reg spectrum_lib[] = {
-  {"get", lua_spectrum_get},
-  {"count", lua_spectrum_count},
-  {NULL, NULL}
-};
-
-// Register gravity API
-static const luaL_Reg gravity_lib[] = {
-  {"get", lua_gravity_get},
-  {NULL, NULL}
-};
-
-// Register config API
-static const luaL_Reg config_lib[] = {
-  {"get", lua_config_get},
-  {NULL, NULL}
-};
-
-// Register time API
-static const luaL_Reg time_lib[] = {
-  {"millis", lua_time_millis},
-  {NULL, NULL}
-};
-
-void register_lua_apis(lua_State* L) {
-  // Register led library
-  luaL_newlib(L, led_lib);
-  lua_setglobal(L, "led");
-
-  // Register spectrum library
-  luaL_newlib(L, spectrum_lib);
-  lua_setglobal(L, "spectrum");
-
-  // Register gravity library
-  luaL_newlib(L, gravity_lib);
-  lua_setglobal(L, "gravity");
-
-  // Register config library
-  luaL_newlib(L, config_lib);
-  lua_setglobal(L, "config");
-
-  // Register time library
-  luaL_newlib(L, time_lib);
-  lua_setglobal(L, "time");
-
-  // Add clamp to math library
-  lua_getglobal(L, "math");
-  lua_pushcfunction(L, lua_math_clamp);
-  lua_setfield(L, -2, "clamp");
-  lua_pop(L, 1);
-
-  // Register constants
-  lua_pushnumber(L, MATRIX_WIDTH);
-  lua_setglobal(L, "WIDTH");
-
-  lua_pushnumber(L, MATRIX_HEIGHT);
-  lua_setglobal(L, "HEIGHT");
-}
 
 // Default Lua script for rhythm visualization
 const char* kDefaultLuaScript = R"lua(
@@ -346,10 +38,6 @@ local color_timer = 0
 local bar_height = {}
 local peak_height = {}
 local prev_fft_value = {}
-
--- Frequency boost array (from rhythm.h line 35-39)
-local fft_freq_boost = {0.4, 0.5, 0.5, 0.5, 0.6, 0.8, 1.1, 1.1, 1.5, 1.7, 3.0, 3.4, 3.6, 3.6, 3.8, 3.8, 1.0}
-local gain = 12
 
 -- Initialize arrays
 for i = 0, 31 do
@@ -570,16 +258,26 @@ end
 }  // namespace
 
 int setup_rhythm_lua_module(void) {
+  // Initialize gravity sensor
   gravity_init();
-
   int err = gravity_sensor_start();
   if (err != 0) {
     Serial.println("[rhythm_lua] MPU start failed");
   }
 
+  // Initialize audio FFT
+  audio_fft_init();
+  err = audio_fft_start();
+  if (err != 0) {
+    Serial.printf("[rhythm_lua] Audio FFT start failed: %d\n", err);
+    return err;
+  }
+
+  // Set brightness
   brightness_max = 10;
   FastLED.setBrightness(10);
 
+  // Load saved config
   if (g_host.saved_subpage < 0) {
     g_host.saved_subpage = load_config(kDefaultConfigKey);
   }
@@ -593,11 +291,11 @@ int setup_rhythm_lua_module(void) {
     return -5;
   }
 
-  // Open standard libraries (only base, table, string, math)
+  // Open standard libraries
   luaL_openlibs(g_host.L);
 
-  // Register custom APIs
-  register_lua_apis(g_host.L);
+  // Register hardware APIs (from common library)
+  register_lua_hardware_apis(g_host.L);
 
   // Load and execute script
   Serial.println("[rhythm_lua] Loading Lua script...");
@@ -624,7 +322,7 @@ int setup_rhythm_lua_module(void) {
     lua_pop(g_host.L, 1);
   }
 
-  return start_audio_capture();
+  return 0;
 }
 
 int unload_rhythm_lua_module(void) {
@@ -646,7 +344,7 @@ int unload_rhythm_lua_module(void) {
   }
 
   gravity_sensor_sleep();
-  stop_audio_capture();
+  audio_fft_stop();
   return 0;
 }
 
@@ -655,7 +353,8 @@ int loop_rhythm_lua_module(void) {
     return 0;
   }
 
-  update_gravity_snapshot();
+  // Update gravity snapshot for Lua API
+  lua_hardware_update_gravity();
 
   // Call loop function
   lua_getglobal(g_host.L, "loop");
