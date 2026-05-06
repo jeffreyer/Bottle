@@ -35,7 +35,8 @@ static void touch_do_initial_scanning(touch_sensor_handle_t sens_handle, touch_c
         };
         for (int j = 0; j < 1; j++) {
           chan_cfg.active_thresh[j] = (uint32_t)(benchmark[j] * s_thresh2bm_ratio);
-        //   printf(" %d: %"PRIu32", %"PRIu32"\t", j, benchmark[j], chan_cfg.active_thresh[j]);
+          delay(3000);
+          printf(" %d:%d  %d\n", j, benchmark[j], chan_cfg.active_thresh[j]);
         }
         // printf("\n");
         /* Update the channel configuration */
@@ -58,7 +59,7 @@ void touch_sleep_init(on_active act,on_inactive inact){
   ESP_ERROR_CHECK(touch_sensor_new_controller(&sens_cfg, &sens_handle));
 
   touch_channel_config_t chan_cfg = {
-    .active_thresh = {2000},
+    .active_thresh = {120},
     .charge_speed = TOUCH_CHARGE_SPEED_7,
     .init_charge_volt = TOUCH_INIT_CHARGE_VOLT_DEFAULT,
   };
@@ -72,7 +73,7 @@ void touch_sleep_init(on_active act,on_inactive inact){
   touch_sensor_filter_config_t filter_cfg = TOUCH_SENSOR_DEFAULT_FILTER_CONFIG();
   ESP_ERROR_CHECK(touch_sensor_config_filter(sens_handle, &filter_cfg));
 
-  touch_do_initial_scanning(sens_handle, chan_handle);
+  // touch_do_initial_scanning(sens_handle, chan_handle);
 
   touch_event_callbacks_t callbacks = {
       .on_active = act,
@@ -86,7 +87,7 @@ void touch_sleep_init(on_active act,on_inactive inact){
   // 正常运行：meas_interval=32us，深度睡眠：meas_interval=16000us（500倍）
   // 正常运行：charge_times=500，深度睡眠：charge_times=50（10倍降低）
   static touch_sensor_sample_config_t deep_sleep_sample_cfg[TOUCH_SAMPLE_CFG_NUM] = {
-    TOUCH_SENSOR_V2_DEFAULT_SAMPLE_CONFIG(50, TOUCH_VOLT_LIM_L_0V5, TOUCH_VOLT_LIM_H_0V9)
+    TOUCH_SENSOR_V2_DEFAULT_SAMPLE_CONFIG(200, TOUCH_VOLT_LIM_L_0V5, TOUCH_VOLT_LIM_H_2V2)
   };
   static touch_sensor_config_dslp_t deep_sleep_sens_cfg = {
     .power_on_wait_us = 128,        // 降低上电等待时间（从256降到128）
@@ -100,7 +101,7 @@ void touch_sleep_init(on_active act,on_inactive inact){
   touch_sleep_config_t slp_cfg = {
     .slp_wakeup_lvl = TOUCH_DEEP_SLEEP_WAKEUP,
     .deep_slp_chan = chan_handle,  // 指定唤醒通道
-    .deep_slp_thresh = {2000},     // 深度睡眠阈值
+    .deep_slp_thresh = {30},     // 深度睡眠阈值
     .deep_slp_sens_cfg = &deep_sleep_sens_cfg,  // 使用超低功耗配置
   };
   ESP_ERROR_CHECK(touch_sensor_config_sleep_wakeup(sens_handle, &slp_cfg));
