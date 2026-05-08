@@ -285,8 +285,16 @@ static int lua_time_millis(lua_State* L) {
   return 1;
 }
 
+// time.delay(ms) -> blocking delay
+static int lua_time_delay(lua_State* L) {
+  unsigned long ms = luaL_checknumber(L, 1);
+  delay(ms);
+  return 0;
+}
+
 static const luaL_Reg time_lib[] = {
   {"millis", lua_time_millis},
+  {"delay", lua_time_delay},
   {NULL, NULL}
 };
 
