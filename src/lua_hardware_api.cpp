@@ -23,6 +23,10 @@ struct GravitySnapshot {
 
 GravitySnapshot g_gravity_snapshot = {0, 0, 0, false};
 
+// 资源使用标志
+bool g_use_gravity = false;
+bool g_use_audio = false;
+
 }  // namespace
 
 // 更新重力传感器快照（由外部调用）
@@ -32,6 +36,49 @@ void lua_hardware_update_gravity() {
   g_gravity_snapshot.x = g.gx;
   g_gravity_snapshot.y = g.gy;
   g_gravity_snapshot.z = g.gz;
+}
+
+// 启动已声明的硬件资源
+void lua_hardware_start_resources() {
+  if (g_use_gravity) {
+    Serial.println("Lua: Starting gravity sensor...");
+    int result = gravity_sensor_start();
+    if (result == 0) {
+      Serial.println("Lua: Gravity sensor started");
+    } else {
+      Serial.println("Lua: Failed to start gravity sensor");
+    }
+  }
+
+  if (g_use_audio) {
+    Serial.println("Lua: Starting audio FFT...");
+    int init_result = audio_fft_init();
+    if (init_result == 0) {
+      int start_result = audio_fft_start();
+      if (start_result == 0) {
+        Serial.println("Lua: Audio FFT started");
+      } else {
+        Serial.println("Lua: Failed to start audio FFT");
+      }
+    } else {
+      Serial.println("Lua: Failed to init audio FFT");
+    }
+  }
+}
+
+// 停止所有硬件资源
+void lua_hardware_stop_resources() {
+  if (g_use_gravity) {
+    Serial.println("Lua: Stopping gravity sensor...");
+    gravity_sensor_sleep();
+    g_use_gravity = false;
+  }
+
+  if (g_use_audio) {
+    Serial.println("Lua: Stopping audio FFT...");
+    audio_fft_stop();
+    g_use_audio = false;
+  }
 }
 
 // ============================================================================
@@ -323,6 +370,28 @@ static int lua_math_clamp(lua_State* L) {
 }
 
 // ============================================================================
+// Resource Declaration API
+// ============================================================================
+
+// use(resource_name) -> declare resource usage
+static int lua_use(lua_State* L) {
+  const char* resource = luaL_checkstring(L, 1);
+
+  if (strcmp(resource, "gravity") == 0) {
+    g_use_gravity = true;
+    Serial.println("Lua: Declared use of gravity sensor");
+  } else if (strcmp(resource, "audio") == 0) {
+    g_use_audio = true;
+    Serial.println("Lua: Declared use of audio FFT");
+  } else {
+    Serial.print("Lua: Unknown resource: ");
+    Serial.println(resource);
+  }
+
+  return 0;
+}
+
+// ============================================================================
 // 注册所有 API
 // ============================================================================
 
@@ -359,6 +428,10 @@ void register_lua_hardware_apis(lua_State* L) {
 
   luaL_newlib(L, sys_lib);
   lua_setglobal(L, "sys");
+
+  // Register use() function
+  lua_pushcfunction(L, lua_use);
+  lua_setglobal(L, "use");
 
   // Register constants
   lua_pushnumber(L, MATRIX_WIDTH);

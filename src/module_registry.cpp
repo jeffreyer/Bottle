@@ -529,6 +529,9 @@ static int dynamic_lua_setup(void) {
     lua_pop(L, 1);
   }
 
+  // Start hardware resources declared by use()
+  lua_hardware_start_resources();
+
   s_dynamic_lua_states[dynamic_idx] = L;
   s_dynamic_lua_loaded[dynamic_idx] = true;
 
@@ -581,6 +584,9 @@ static int dynamic_lua_unload(void) {
     } else {
       lua_pop(L, 1);
     }
+
+    // Stop hardware resources
+    lua_hardware_stop_resources();
 
     lua_close(L);
     s_dynamic_lua_states[s_current_dynamic_module] = nullptr;

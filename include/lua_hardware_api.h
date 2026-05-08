@@ -8,3 +8,9 @@ void register_lua_hardware_apis(lua_State* L);
 
 // 更新重力传感器快照（在调用 Lua 脚本前调用）
 void lua_hardware_update_gravity();
+
+// 启动已声明的硬件资源
+void lua_hardware_start_resources();
+
+// 停止所有硬件资源
+void lua_hardware_stop_resources();
