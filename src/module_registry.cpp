@@ -1,7 +1,6 @@
 #include "module_registry.h"
 #include "breakout.h"
 #include "candle.h"
-#include "colorwave_lua.h"
 #include "rhythm_lua.h"
 #include "sandglass.h"
 #include "sim_manager.h"
@@ -37,7 +36,6 @@ static const module_config_item_t breakout_configs[] = {
 // Built-in modules (static)
 static const module_descriptor_t k_builtin_modules[] = {
   {"rhythm", "Rhythm", "3.0.0", "Bottle", "Lua-powered audio spectrum visualizer", "lua", "lua-5.4.7", nullptr, setup_rhythm_lua_module, unload_rhythm_lua_module, loop_rhythm_lua_module, nullptr, 0, true},
-  {"colorwave", "ColorWave", "1.0.0", "Bottle", "Full screen color scrolling effect", "lua", "lua-5.4.7", nullptr, setup_colorwave_lua_module, unload_colorwave_lua_module, loop_colorwave_lua_module, nullptr, 0, true},
   {"water", "Water", "1.0.0", "Bottle", "Gravity liquid simulation", "native", "native", nullptr, setup_fluid, unload_fluid, fluid_loop, water_configs, (uint8_t)(sizeof(water_configs) / sizeof(water_configs[0])), true},
   {"candle", "Candle", "1.0.0", "Bottle", "Gravity-aware candle flame", "native", "native", nullptr, setup_candle, unload_candle, candle_loop, candle_configs, (uint8_t)(sizeof(candle_configs) / sizeof(candle_configs[0])), true},
   {"sandglass", "Sandglass", "1.0.0", "Bottle", "Gravity sandglass", "native", "native", nullptr, setup_sand, unload_sand, sand_loop, sand_configs, (uint8_t)(sizeof(sand_configs) / sizeof(sand_configs[0])), true},
@@ -56,7 +54,8 @@ static uint8_t s_total_module_count = 0;
 static bool s_enabled[sizeof(k_builtin_modules) / sizeof(k_builtin_modules[0]) + MAX_DYNAMIC_MODULES];
 
 // Dynamic module string storage (for id, name, etc.)
-static char s_dynamic_strings[MAX_DYNAMIC_MODULES][6][64]; // 6 strings per module, 64 chars each
+// 增加缓冲区大小以容纳 UTF-8 中文字符（每个中文字符占3字节）
+static char s_dynamic_strings[MAX_DYNAMIC_MODULES][6][128]; // 6 strings per module, 128 chars each
 
 // Lua state for each dynamic module
 static lua_State* s_dynamic_lua_states[MAX_DYNAMIC_MODULES];
@@ -144,11 +143,12 @@ static void parse_lua_metadata(const String& content, module_descriptor_t* modul
     id.replace(".lua", "");
   }
 
-  strncpy(s_dynamic_strings[module_idx][0], id.c_str(), 63);
-  strncpy(s_dynamic_strings[module_idx][1], name.c_str(), 63);
-  strncpy(s_dynamic_strings[module_idx][2], version.c_str(), 63);
-  strncpy(s_dynamic_strings[module_idx][3], author.c_str(), 63);
-  strncpy(s_dynamic_strings[module_idx][4], description.c_str(), 63);
+  // 使用 snprintf 确保字符串以 null 结尾，缓冲区大小为 128 字节
+  snprintf(s_dynamic_strings[module_idx][0], 128, "%s", id.c_str());
+  snprintf(s_dynamic_strings[module_idx][1], 128, "%s", name.c_str());
+  snprintf(s_dynamic_strings[module_idx][2], 128, "%s", version.c_str());
+  snprintf(s_dynamic_strings[module_idx][3], 128, "%s", author.c_str());
+  snprintf(s_dynamic_strings[module_idx][4], 128, "%s", description.c_str());
 
   module->id = s_dynamic_strings[module_idx][0];
   module->name = s_dynamic_strings[module_idx][1];
@@ -192,7 +192,7 @@ static bool load_dynamic_lua_module(const char* filename) {
   module_descriptor_t* module = &s_dynamic_modules[idx];
 
   // Store script path
-  strncpy(s_dynamic_strings[idx][5], filename, 63);
+  snprintf(s_dynamic_strings[idx][5], 128, "%s", filename);
   module->script_path = s_dynamic_strings[idx][5];
 
   // Parse metadata from file content
@@ -253,7 +253,7 @@ static void scan_dynamic_modules(void) {
     // Check if it's a Lua file
     if (filename.endsWith(".lua")) {
       // Skip built-in Lua modules
-      if (filename != "rhythm.lua" && filename != "colorwave.lua") {
+      if (filename != "rhythm.lua") {
         load_dynamic_lua_module(filename.c_str());
       }
     }
