@@ -656,19 +656,34 @@ void ble_config_stop(void) {
         return;
     }
 
+    Serial.println("BLE: Stopping BLE...");
+
+    // 主动断开所有客户端连接
+    if (s_ble_server && s_client_connected) {
+        Serial.println("BLE: Disconnecting clients...");
+        s_ble_server->disconnect(s_ble_server->getConnId());
+        s_client_connected = false;
+        delay(100); // 等待断开完成
+    }
+
+    // 停止广播
     Serial.println("BLE: Stopping advertising...");
     if (s_ble_advertising) {
         s_ble_advertising->stop();
     }
 
-    // 不销毁BLE栈，只停止广播
-    // 这样可以避免内存泄漏和重复初始化的问题
+    // 让蓝牙进入休眠模式
+    Serial.println("BLE: Entering sleep mode...");
+    BLEDevice::deinit(false); // false表示不释放内存，保留配置以便快速重启
+
+    // 清理状态
     s_pending_cmd = "";
     s_has_pending_cmd = false;
     s_client_connected = false;
     s_ble_enabled = false;
+    s_ble_initialized = false; // 标记为未初始化，下次需要重新初始化
 
-    Serial.println("BLE: Advertising stopped (stack preserved)");
+    Serial.println("BLE: BLE stopped and entered sleep mode");
 }
 
 void ble_config_update(void) {

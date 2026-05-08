@@ -275,6 +275,16 @@ void check_btn(){
     Serial.println(ble_config_is_enabled() ? "enabled" : "disabled");
     btn_status = BTN_NONE;
     ble_config_toggle();
+    if (!ble_config_is_enabled()){ //退出蓝牙后重新启动模块
+      const module_descriptor_t* current = module_registry_get((uint8_t)page_index);
+      int ret;
+      if (current && current->unload) {
+        ret = current->unload();
+      }
+      if (current && current->setup) {
+        ret = current->setup();
+      }
+    }
   }
   else if (btn_status == BTN_SLEEP){
     // Sleep action - save config and enter deep sleep

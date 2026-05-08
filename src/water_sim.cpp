@@ -143,6 +143,10 @@ static void sim_task(void* arg) {
     if (mem_subindex2<0)
         mem_subindex2=load_config("sim_index");
     subpage_index=mem_subindex2;
+
+    // Load custom color settings
+    int custom_color_enabled = load_config("color_custom");
+    int custom_color_hue = load_config("color_hue");
     
     const TickType_t frame_ticks = pdMS_TO_TICKS(1000 / SIM_FPS);
     const float dt = 1.0f / (float)SIM_FPS;
@@ -168,7 +172,14 @@ static void sim_task(void* arg) {
             gravity_xy_t g = gravity_get();
             float gx = g.valid ? g.gx : 0.0f;
             float gy = g.valid ? g.gy : 0.0f;
-            uint8_t hue = (uint8_t)((subpage_index * 20) % 256);
+
+            // Use custom color if enabled, otherwise use palette-based color
+            uint8_t hue;
+            if (custom_color_enabled) {
+                hue = (uint8_t)custom_color_hue;
+            } else {
+                hue = (uint8_t)((subpage_index * 20) % 256);
+            }
 
             // 根据当前时间计算潮汐因子（0.0 = 最低潮, 1.0 = 最高潮），
             // 并在每一帧更新内部粒子数量，实现真实“水量”随潮汐变化。

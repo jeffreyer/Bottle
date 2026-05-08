@@ -17,7 +17,8 @@ extern "C" {
 #define MAX_DYNAMIC_MODULES 20
 
 static const module_config_item_t water_configs[] = {
-  {"sim_index", "Palette", MODULE_CONFIG_INT, 0, 99, 0, nullptr},
+  {"color_custom", "自定义颜色", MODULE_CONFIG_BOOL, 0, 1, 0, nullptr},
+  {"color_hue", "色调", MODULE_CONFIG_INT, 0, 255, 160, nullptr},
 };
 
 static const module_config_item_t candle_configs[] = {
