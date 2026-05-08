@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 void show_module_hold_hint(void);
-void show_ble_hold_hint(void);
+void show_ble_hold_hint(bool show_slash = false);
 void show_sleep_hold_hint(void);
 
 #endif

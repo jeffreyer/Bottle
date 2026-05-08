@@ -143,12 +143,34 @@ static bool touch_on_inactive_cb(touch_sensor_handle_t sens_handle, const touch_
     uint32_t now=millis();
     if (now-tm_touch_begin>800){
       // User held for more than 800ms, use the cycle indicator to determine action
-      if (touch_hold_cycle == 0) {
-        btn_status = BTN_MODULE;
-      } else if (touch_hold_cycle == 1) {
-        btn_status = BTN_BLE;
-      } else if (touch_hold_cycle == 2) {
-        btn_status = BTN_SLEEP;
+      bool in_ble_mode = ble_config_is_enabled();
+
+      Serial.print("Touch released after long press. BLE mode: ");
+      Serial.print(in_ble_mode);
+      Serial.print(", cycle: ");
+      Serial.println(touch_hold_cycle);
+
+      if (in_ble_mode) {
+        // In BLE mode: cycle 0 = BLE toggle, cycle 1 = Sleep
+        if (touch_hold_cycle == 0) {
+          btn_status = BTN_BLE;
+          Serial.println("Set btn_status = BTN_BLE (turn off)");
+        } else if (touch_hold_cycle == 1) {
+          btn_status = BTN_SLEEP;
+          Serial.println("Set btn_status = BTN_SLEEP");
+        }
+      } else {
+        // Normal mode: cycle 0 = Module, cycle 1 = BLE, cycle 2 = Sleep
+        if (touch_hold_cycle == 0) {
+          btn_status = BTN_MODULE;
+          Serial.println("Set btn_status = BTN_MODULE");
+        } else if (touch_hold_cycle == 1) {
+          btn_status = BTN_BLE;
+          Serial.println("Set btn_status = BTN_BLE (turn on)");
+        } else if (touch_hold_cycle == 2) {
+          btn_status = BTN_SLEEP;
+          Serial.println("Set btn_status = BTN_SLEEP");
+        }
       }
     }
     else if (now-tm_touch_begin>100){
@@ -168,23 +190,45 @@ void check_btn(){
     if (held > 800 && touch_hold_hint < 1) {
       // Start cycling through icons
       touch_hold_hint = 1;
+      bool in_ble_mode = ble_config_is_enabled();
+      // In BLE mode, start from BLE icon (cycle 0), otherwise start from module icon (cycle 0)
       touch_hold_cycle = 0;
       touch_hold_cycle_time = now;
-      show_module_hold_hint();
+
+      if (in_ble_mode) {
+        show_ble_hold_hint(true);  // Show slash in BLE mode (turn off)
+      } else {
+        show_module_hold_hint();
+      }
     } else if (held > 15000) {
       btn_status = BTN_SLEEP;
     } else if (held > 800) {
       // Cycling mode: update icon every 1000ms
       if (now - touch_hold_cycle_time > 1000) {
-        touch_hold_cycle = (touch_hold_cycle + 1) % 3;
-        touch_hold_cycle_time = now;
+        bool in_ble_mode = ble_config_is_enabled();
 
-        if (touch_hold_cycle == 0) {
-          show_module_hold_hint();
-        } else if (touch_hold_cycle == 1) {
-          show_ble_hold_hint();
-        } else if (touch_hold_cycle == 2) {
-          show_sleep_hold_hint();
+        if (in_ble_mode) {
+          // In BLE mode: cycle between BLE (0) and Sleep (1)
+          touch_hold_cycle = (touch_hold_cycle + 1) % 2;
+          touch_hold_cycle_time = now;
+
+          if (touch_hold_cycle == 0) {
+            show_ble_hold_hint(true);  // Show slash in BLE mode (turn off)
+          } else if (touch_hold_cycle == 1) {
+            show_sleep_hold_hint();
+          }
+        } else {
+          // Normal mode: cycle between Module (0), BLE (1), Sleep (2)
+          touch_hold_cycle = (touch_hold_cycle + 1) % 3;
+          touch_hold_cycle_time = now;
+
+          if (touch_hold_cycle == 0) {
+            show_module_hold_hint();
+          } else if (touch_hold_cycle == 1) {
+            show_ble_hold_hint(false);  // No slash in normal mode (turn on)
+          } else if (touch_hold_cycle == 2) {
+            show_sleep_hold_hint();
+          }
         }
       }
     }
@@ -227,6 +271,8 @@ void check_btn(){
 
   }
   else if (btn_status == BTN_BLE){
+    Serial.print("Processing BTN_BLE, current BLE state: ");
+    Serial.println(ble_config_is_enabled() ? "enabled" : "disabled");
     btn_status = BTN_NONE;
     ble_config_toggle();
   }

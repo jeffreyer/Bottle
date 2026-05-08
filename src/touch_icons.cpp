@@ -51,7 +51,7 @@ void show_module_hold_hint(void) {
   FastLED.show();
 }
 
-void show_ble_hold_hint(void) {
+void show_ble_hold_hint(bool show_slash) {
   // Clear screen first
   rgb_clear();
   FastLED.show();
@@ -75,6 +75,19 @@ void show_ble_hold_hint(void) {
   px(5, 5); px(7, 5); px(8, 5); px(10, 5);
   px(8, 6); px(9, 6);
   px(8, 7);
+
+  // Add red diagonal slash only when show_slash is true (BLE mode = turn off)
+  if (show_slash) {
+    // Diagonal line from top-left to bottom-right across the BLE icon
+    rgb_set(4, 1, 80, 0, 0);
+    rgb_set(5, 2, 80, 0, 0);
+    rgb_set(6, 3, 80, 0, 0);
+    rgb_set(7, 4, 80, 0, 0);
+    rgb_set(8, 4, 80, 0, 0);
+    rgb_set(9, 5, 80, 0, 0);
+    rgb_set(10, 6, 80, 0, 0);
+    rgb_set(11, 7, 80, 0, 0);
+  }
 
   FastLED.show();
 }

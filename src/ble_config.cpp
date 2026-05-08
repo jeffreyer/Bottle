@@ -21,10 +21,13 @@ extern uint32_t s_idle_timeout_ms;
 #define BLE_STATUS_CHAR_UUID "8c0b8a12-7e3d-4df7-9a2a-1d8d46f8b100"
 
 static BLECharacteristic* s_status_char = nullptr;
+static BLEServer* s_ble_server = nullptr;
+static BLEAdvertising* s_ble_advertising = nullptr;
 static String s_pending_cmd;
 static bool s_has_pending_cmd = false;
 static bool s_client_connected = false;
 static bool s_ble_enabled = false;
+static bool s_ble_initialized = false;
 
 // File upload state
 static bool s_upload_in_progress = false;
@@ -524,67 +527,90 @@ class StatusReadCallbacks : public BLECharacteristicCallbacks {
 };
 
 void ble_config_init(void) {
-    if (s_ble_enabled) return;
+    if (s_ble_enabled) {
+        Serial.println("BLE: Already enabled, skipping");
+        return;
+    }
 
-    BLEDevice::init(BLE_DEVICE_NAME);
-    BLEServer* server = BLEDevice::createServer();
-    server->setCallbacks(new ConfigServerCallbacks());
+    // 第一次初始化：创建BLE栈和服务
+    if (!s_ble_initialized) {
+        Serial.println("BLE: First-time initialization - creating BLE stack...");
+        BLEDevice::init(BLE_DEVICE_NAME);
 
-    BLEService* service = server->createService(BLE_SERVICE_UUID);
-    BLECharacteristic* config_char = service->createCharacteristic(
-        BLE_CONFIG_CHAR_UUID,
-        BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR
-    );
-    config_char->setCallbacks(new ConfigWriteCallbacks());
+        Serial.println("BLE: Creating server...");
+        s_ble_server = BLEDevice::createServer();
+        s_ble_server->setCallbacks(new ConfigServerCallbacks());
 
-    s_status_char = service->createCharacteristic(
-        BLE_STATUS_CHAR_UUID,
-        BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
-    );
+        Serial.println("BLE: Creating service...");
+        BLEService* service = s_ble_server->createService(BLE_SERVICE_UUID);
+        BLECharacteristic* config_char = service->createCharacteristic(
+            BLE_CONFIG_CHAR_UUID,
+            BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR
+        );
+        config_char->setCallbacks(new ConfigWriteCallbacks());
 
-    // 设置特征值最大长度为 1024 字节（支持更多模块）
-    BLEDescriptor* desc = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
-    s_status_char->addDescriptor(desc);
+        s_status_char = service->createCharacteristic(
+            BLE_STATUS_CHAR_UUID,
+            BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
+        );
 
-    // 设置读取回调
-    s_status_char->setCallbacks(new StatusReadCallbacks());
+        BLEDescriptor* desc = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
+        s_status_char->addDescriptor(desc);
+        s_status_char->setCallbacks(new StatusReadCallbacks());
 
-    // 设置初始状态值
-    String initial_status = status_json();
-    s_status_char->setValue(initial_status.c_str());
+        String initial_status = status_json();
+        s_status_char->setValue(initial_status.c_str());
 
-    Serial.println("BLE: 初始化完成，初始状态:");
-    Serial.println(initial_status);
+        Serial.println("BLE: Starting service...");
+        service->start();
 
-    service->start();
+        Serial.println("BLE: Configuring advertising...");
+        s_ble_advertising = BLEDevice::getAdvertising();
+        BLEAdvertisementData adv_data;
+        adv_data.setName(BLE_DEVICE_NAME);
+        adv_data.setCompleteServices(BLEUUID(BLE_SERVICE_UUID));
 
-    BLEAdvertising* advertising = BLEDevice::getAdvertising();
-    BLEAdvertisementData adv_data;
-    adv_data.setName(BLE_DEVICE_NAME);
-    adv_data.setCompleteServices(BLEUUID(BLE_SERVICE_UUID));
+        BLEAdvertisementData scan_data;
+        scan_data.setName(BLE_DEVICE_NAME);
 
-    BLEAdvertisementData scan_data;
-    scan_data.setName(BLE_DEVICE_NAME);
+        s_ble_advertising->setAdvertisementData(adv_data);
+        s_ble_advertising->setScanResponseData(scan_data);
+        s_ble_advertising->setName(BLE_DEVICE_NAME);
+        s_ble_advertising->addServiceUUID(BLE_SERVICE_UUID);
+        s_ble_advertising->setScanResponse(true);
 
-    advertising->setAdvertisementData(adv_data);
-    advertising->setScanResponseData(scan_data);
-    advertising->setName(BLE_DEVICE_NAME);
-    advertising->addServiceUUID(BLE_SERVICE_UUID);
-    advertising->setScanResponse(true);
-    advertising->start();
+        s_ble_initialized = true;
+        Serial.println("BLE: Stack initialized");
+    } else {
+        Serial.println("BLE: Stack already initialized, reusing...");
+    }
+
+    // 启动广播
+    Serial.println("BLE: Starting advertising...");
+    s_ble_advertising->start();
     s_ble_enabled = true;
+    Serial.println("BLE: Advertising started");
 }
 
 void ble_config_stop(void) {
-    if (!s_ble_enabled) return;
+    if (!s_ble_enabled) {
+        Serial.println("BLE: Already disabled");
+        return;
+    }
 
-    BLEDevice::getAdvertising()->stop();
-    BLEDevice::deinit(true);
-    s_status_char = nullptr;
+    Serial.println("BLE: Stopping advertising...");
+    if (s_ble_advertising) {
+        s_ble_advertising->stop();
+    }
+
+    // 不销毁BLE栈，只停止广播
+    // 这样可以避免内存泄漏和重复初始化的问题
     s_pending_cmd = "";
     s_has_pending_cmd = false;
     s_client_connected = false;
     s_ble_enabled = false;
+
+    Serial.println("BLE: Advertising stopped (stack preserved)");
 }
 
 void ble_config_update(void) {
@@ -606,13 +632,20 @@ bool ble_config_is_enabled(void) {
 }
 
 void ble_config_toggle(void) {
+    Serial.print("BLE: toggle called, current state: ");
+    Serial.println(s_ble_enabled ? "enabled" : "disabled");
+
     if (s_ble_enabled) {
+        Serial.println("BLE: Stopping BLE...");
         ble_config_stop();
         FastLED.clear();
         FastLED.show();
+        Serial.println("BLE: BLE stopped");
     } else {
+        Serial.println("BLE: Starting BLE...");
         ble_config_init();
         draw_ble_icon();
+        Serial.println("BLE: BLE started");
     }
 }
 
