@@ -1,5 +1,4 @@
 #include "module_registry.h"
-#include "breakout.h"
 #include "candle.h"
 #include "rhythm_lua.h"
 #include "sandglass.h"
@@ -29,17 +28,12 @@ static const module_config_item_t sand_configs[] = {
   {"sand_speed", "Speed", MODULE_CONFIG_INT, 1, 10, 5, nullptr},
 };
 
-static const module_config_item_t breakout_configs[] = {
-  {"breakout_level", "Level", MODULE_CONFIG_INT, 0, 9, 0, nullptr},
-};
-
 // Built-in modules (static)
 static const module_descriptor_t k_builtin_modules[] = {
-  {"rhythm", "Rhythm", "3.0.0", "Bottle", "Lua-powered audio spectrum visualizer", "lua", "lua-5.4.7", nullptr, setup_rhythm_lua_module, unload_rhythm_lua_module, loop_rhythm_lua_module, nullptr, 0, true},
-  {"water", "Water", "1.0.0", "Bottle", "Gravity liquid simulation", "native", "native", nullptr, setup_fluid, unload_fluid, fluid_loop, water_configs, (uint8_t)(sizeof(water_configs) / sizeof(water_configs[0])), true},
-  {"candle", "Candle", "1.0.0", "Bottle", "Gravity-aware candle flame", "native", "native", nullptr, setup_candle, unload_candle, candle_loop, candle_configs, (uint8_t)(sizeof(candle_configs) / sizeof(candle_configs[0])), true},
-  {"sandglass", "Sandglass", "1.0.0", "Bottle", "Gravity sandglass", "native", "native", nullptr, setup_sand, unload_sand, sand_loop, sand_configs, (uint8_t)(sizeof(sand_configs) / sizeof(sand_configs[0])), true},
-  {"breakout", "Breakout", "1.0.0", "Bottle", "Tiny motion game", "native", "native", nullptr, setup_breakout, unload_breakout, breakout_loop, breakout_configs, (uint8_t)(sizeof(breakout_configs) / sizeof(breakout_configs[0])), true},
+  {"rhythm", "跳动音律", "3.0.0", "Bottle", "Lua-powered audio spectrum visualizer", "lua", "lua-5.4.7", nullptr, setup_rhythm_lua_module, unload_rhythm_lua_module, loop_rhythm_lua_module, nullptr, 0, true},
+  {"water", "海洋流体", "1.0.0", "Bottle", "Gravity liquid simulation", "native", "native", nullptr, setup_fluid, unload_fluid, fluid_loop, water_configs, (uint8_t)(sizeof(water_configs) / sizeof(water_configs[0])), true},
+  {"candle", "蜡烛焰火", "1.0.0", "Bottle", "Gravity-aware candle flame", "native", "native", nullptr, setup_candle, unload_candle, candle_loop, candle_configs, (uint8_t)(sizeof(candle_configs) / sizeof(candle_configs[0])), true},
+  {"sandglass", "沙漏", "1.0.0", "Bottle", "Gravity sandglass", "native", "native", nullptr, setup_sand, unload_sand, sand_loop, sand_configs, (uint8_t)(sizeof(sand_configs) / sizeof(sand_configs[0])), true},
 };
 
 // Dynamic modules storage
