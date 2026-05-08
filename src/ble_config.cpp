@@ -133,20 +133,12 @@ static void set_status(const String& s) {
 
     // 如果数据小于 300 字节，直接发送
     if (s.length() <= 500) {
-        Serial.print("BLE: 直接发送 (");
-        Serial.print(s.length());
-        Serial.println(" bytes)");
         s_status_char->setValue(s.c_str());
         if (s_client_connected) {
             s_status_char->notify();
         }
         return;
     }
-
-    // 数据太大，需要分块传输
-    Serial.print("BLE: 数据过大 (");
-    Serial.print(s.length());
-    Serial.println(" bytes)，使用分块传输");
 
     const int chunk_size = 300;  // 保守值，确保包装后不超过 MTU
     const char* str = s.c_str();
@@ -171,11 +163,6 @@ static void set_status(const String& s) {
         temp_pos += len;
         total_chunks++;
     }
-
-    Serial.print("BLE: 总共 ");
-    Serial.print(total_chunks);
-    Serial.println(" 个分块");
-
     // 发送分块
     while (pos < str_len) {
         int remaining = str_len - pos;
@@ -210,20 +197,6 @@ static void set_status(const String& s) {
             packet += c;
         }
         packet += "\"}";
-
-        Serial.print("BLE: 发送分块 ");
-        Serial.print(chunk_index + 1);
-        Serial.print("/");
-        Serial.print(total_chunks);
-        Serial.print(" (pos: ");
-        Serial.print(pos);
-        Serial.print(", len: ");
-        Serial.print(len);
-        Serial.print(", 转义: ");
-        Serial.print(escaped_count);
-        Serial.print(", 总计: ");
-        Serial.print(packet.length());
-        Serial.println(" bytes)");
 
         if (packet.length() > 512) {
             Serial.print("BLE: 错误！分块过大: ");
@@ -284,13 +257,8 @@ static void apply_command(const String& cmd) {
             }
         }
 
-        Serial.print("BLE: 请求状态，起始索引: ");
-        Serial.println(start_idx);
-
         // 获取模块总数
         int total_modules = module_registry_count();
-        Serial.print("BLE: 模块总数: ");
-        Serial.println(total_modules);
 
         // 每次尝试发送的模块数（动态调整以保证 JSON < 实际 MTU）
         const int MAX_JSON_SIZE = 500;  // 实际 MTU 约 253 字节，留余量
@@ -347,8 +315,6 @@ static void apply_command(const String& cmd) {
             modules_to_send = max(1, modules_to_send - 1);
 
         }
-Serial.print("BLE: JSON ");
-Serial.println(status);
         set_status(status);
         return;
     }
@@ -380,11 +346,6 @@ Serial.println(status);
             if (end < 0) end = cmd.indexOf("}", start);
             size = cmd.substring(start, end).toInt();
         }
-
-        Serial.println("BLE: 开始接收文件上传");
-        Serial.println("  模块ID: " + module_id);
-        Serial.println("  文件名: " + filename);
-        Serial.println("  大小: " + String(size));
 
         s_upload_in_progress = true;
         s_upload_module_id = module_id;
@@ -422,10 +383,6 @@ Serial.println(status);
                     s_upload_file.write(decoded, decoded_len);
                     s_upload_received += decoded_len;
 
-                    Serial.print("BLE: 接收进度: ");
-                    Serial.print(s_upload_received);
-                    Serial.print("/");
-                    Serial.println(s_upload_size);
                 }
 
                 free(decoded);
@@ -436,14 +393,10 @@ Serial.println(status);
 
     // 处理上传完成
     if (cmd.indexOf("\"upload_complete\"") >= 0 && s_upload_in_progress) {
-        Serial.println("BLE: 文件上传完成");
 
         if (s_upload_file) {
             s_upload_file.close();
         }
-
-        Serial.println("BLE: 文件已保存: /spiffs/" + s_upload_filename);
-        Serial.println("BLE: 接收字节数: " + String(s_upload_received));
 
         // 读取并打印文件内容用于调试
         String filepath = "/spiffs/" + s_upload_filename;
@@ -470,16 +423,11 @@ Serial.println(status);
 
         // 查找并启用新上传的模块
         if (uploaded_module_id.length() > 0) {
-            Serial.print("BLE: 查找并启用模块: ");
-            Serial.println(uploaded_module_id);
 
             for (int i = 0; i < module_registry_count(); i++) {
                 const module_descriptor_t* module = module_registry_get(i);
                 if (module && String(module->id) == uploaded_module_id) {
-                    Serial.print("BLE: 找到模块索引: ");
-                    Serial.println(i);
                     app_set_module_enabled(i, true);
-                    Serial.println("BLE: 模块已启用");
                     break;
                 }
             }
@@ -525,15 +473,8 @@ Serial.println(status);
 
     int module_index = -1;
     if (extract_int(cmd, "module", &module_index) && extract_int(cmd, "enabled", &value)) {
-        Serial.print("BLE: 设置模块 ");
-        Serial.print(module_index);
-        Serial.print(" 启用状态为 ");
-        Serial.println(value != 0);
-
         bool result = app_set_module_enabled(module_index, value != 0);
 
-        Serial.print("BLE: 设置结果: ");
-        Serial.println(result ? "成功" : "失败");
     }
 
     if (extract_int(cmd, "manifest", &module_index)) {
@@ -543,9 +484,6 @@ Serial.println(status);
 
     // 添加删除模块功能
     if (extract_int(cmd, "delete_module", &module_index)) {
-        Serial.print("BLE: 删除模块 ");
-        Serial.println(module_index);
-
         if (module_index >= 0 && module_index < module_registry_count()) {
             const module_descriptor_t* module = module_registry_get((uint8_t)module_index);
             if (module) {
@@ -558,8 +496,6 @@ Serial.println(status);
                     Serial.println("BLE: Lua模块，执行物理删除");
                     if (module->script_path) {
                         String path = String("/spiffs/") + module->script_path;
-                        Serial.print("BLE: 尝试删除文件: ");
-                        Serial.println(path);
 
                         if (SPIFFS.exists(path.c_str())) {
                             if (SPIFFS.remove(path.c_str())) {
@@ -641,8 +577,6 @@ class StatusReadCallbacks : public BLECharacteristicCallbacks {
         // 当客户端读取状态时，更新并发送最新状态
         String status = status_json();
         characteristic->setValue(status.c_str());
-        Serial.println("BLE: 状态被读取");
-        Serial.println(status);
     }
 };
 
