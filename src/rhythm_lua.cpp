@@ -93,11 +93,27 @@ local fft_band_ranges = {
   {92, 133}    -- Band 16: max of bins 92-133 in groups of 6, then avg /6
 }
 
+-- Load sensitivity from config
+local sensitivity = config.get("sensitivity")
+if sensitivity == 0 then
+  sensitivity = 12  -- default
+end
+
 -- Boost multipliers for each band (from original audio_fft.cpp)
-local fft_band_boost = {
-  0.4, 0.5, 0.5, 0.5, 0.6, 0.8, 1.1, 1.1, 1.5,
-  1.7, 3.0, 3.4, 3.6, 3.6, 3.8, 3.8, 1.0
-}
+-- Load from config, or use defaults
+local fft_band_boost = {}
+for i = 0, 16 do
+  local band_value = config.get("band_" .. i)
+  if band_value > 0 then
+    print(i, band_value)
+    fft_band_boost[i + 1] = band_value / 10.0  -- Convert from 0-100 to 0.0-10.0
+  else
+    -- Default values
+    local defaults = {0.4, 0.5, 0.5, 0.5, 0.6, 0.8, 1.1, 1.1, 1.5,
+                      1.7, 3.0, 3.4, 3.6, 3.6, 3.8, 3.8, 1.0}
+    fft_band_boost[i + 1] = defaults[i + 1]
+  end
+end
 
 -- Process raw FFT data into frequency bands
 function process_fft_bands()
@@ -116,8 +132,8 @@ function process_fft_bands()
     end
 
     local avg = sum / count
-    -- Apply boost and scaling: boost[i] * 12.0 / 50.0
-    local scaled = avg * fft_band_boost[band_idx] * 12.0 / 50.0
+    -- Apply boost and scaling: boost[i] * sensitivity / 50.0
+    local scaled = avg * fft_band_boost[band_idx] * sensitivity / 50.0
     bands[band_idx - 1] = math.min(255, math.max(0, math.floor(scaled)))
   end
 
@@ -131,7 +147,7 @@ function process_fft_bands()
   high = math.max(high, fft.get(122) + fft.get(123) + fft.get(124) + fft.get(125) + fft.get(126) + fft.get(127))
   high = math.max(high, fft.get(128) + fft.get(129) + fft.get(130) + fft.get(131) + fft.get(132) + fft.get(133))
   local avg_high = high / 6
-  local scaled_high = avg_high * fft_band_boost[17] * 12.0 / 50.0
+  local scaled_high = avg_high * fft_band_boost[17] * sensitivity / 50.0
   bands[16] = math.min(255, math.max(0, math.floor(scaled_high)))
 
   return bands
@@ -486,13 +502,49 @@ String rhythm_lua_module_runtime_status_json(void) {
 
 String rhythm_lua_module_configs_json(void) {
   String s = "[";
+
+  // Style selector
   s += "{";
   s += "\"key\":\"style\"";
-  s += ",\"label\":\"Style\"";
+  s += ",\"label\":\"风格\"";
   s += ",\"type\":\"select\"";
   s += ",\"default\":0";
-  s += ",\"options\":\"Green Peak|Rainbow|Split Rainbow|Color Flow\"";
+  s += ",\"options\":\"绿峰|彩虹|分裂|流动\"";
   s += "}";
+
+  // Overall sensitivity
+  s += ",{";
+  s += "\"key\":\"sensitivity\"";
+  s += ",\"label\":\"灵敏度\"";
+  s += ",\"type\":\"int\"";
+  s += ",\"min\":1";
+  s += ",\"max\":50";
+  s += ",\"default\":12";
+  s += "}";
+
+  // 17 frequency band gains - use shorter labels
+  const char* band_labels[] = {
+    "低音0", "低音1", "低音2", "低音3",
+    "中低4", "中低5", "中音6", "中音7",
+    "中音8", "中音9", "中高10", "中高11",
+    "高音12", "高音13", "高音14", "高音15",
+    "超高16"
+  };
+
+  // Default values: original fft_band_boost * 10
+  const int band_defaults[] = {4, 5, 5, 5, 6, 8, 11, 11, 15, 17, 30, 34, 36, 36, 38, 38, 10};
+
+  for (int i = 0; i < 17; i++) {
+    s += ",{";
+    s += "\"key\":\"band_" + String(i) + "\"";
+    s += ",\"label\":\"" + String(band_labels[i]) + "\"";
+    s += ",\"type\":\"int\"";
+    s += ",\"min\":0";
+    s += ",\"max\":100";
+    s += ",\"default\":" + String(band_defaults[i]);
+    s += "}";
+  }
+
   s += "]";
   return s;
 }

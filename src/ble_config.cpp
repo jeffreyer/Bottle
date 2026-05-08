@@ -131,11 +131,119 @@ static String status_json(bool include_modules = false) {
 static void set_status(const String& s) {
     if (!s_status_char) return;
 
-    // 直接发送，不再分包
-    s_status_char->setValue(s.c_str());
-    if (s_client_connected) {
-        s_status_char->notify();
+    // 如果数据小于 300 字节，直接发送
+    if (s.length() <= 500) {
+        Serial.print("BLE: 直接发送 (");
+        Serial.print(s.length());
+        Serial.println(" bytes)");
+        s_status_char->setValue(s.c_str());
+        if (s_client_connected) {
+            s_status_char->notify();
+        }
+        return;
     }
+
+    // 数据太大，需要分块传输
+    Serial.print("BLE: 数据过大 (");
+    Serial.print(s.length());
+    Serial.println(" bytes)，使用分块传输");
+
+    const int chunk_size = 300;  // 保守值，确保包装后不超过 MTU
+    const char* str = s.c_str();
+    int str_len = s.length();
+    int pos = 0;
+    int chunk_index = 0;
+
+    // 先计算总分块数
+    int total_chunks = 0;
+    int temp_pos = 0;
+    while (temp_pos < str_len) {
+        int remaining = str_len - temp_pos;
+        int len = min(chunk_size, remaining);
+
+        // 调整到 UTF-8 字符边界
+        if (temp_pos + len < str_len) {
+            while (len > 0 && ((unsigned char)str[temp_pos + len] & 0xC0) == 0x80) {
+                len--;
+            }
+        }
+
+        temp_pos += len;
+        total_chunks++;
+    }
+
+    Serial.print("BLE: 总共 ");
+    Serial.print(total_chunks);
+    Serial.println(" 个分块");
+
+    // 发送分块
+    while (pos < str_len) {
+        int remaining = str_len - pos;
+        int len = min(chunk_size, remaining);
+
+        // 调整到 UTF-8 字符边界：向前回退到非后续字节
+        if (pos + len < str_len) {
+            while (len > 0 && ((unsigned char)str[pos + len] & 0xC0) == 0x80) {
+                len--;
+            }
+        }
+
+        // 提取分块数据
+        String chunk = "";
+        for (int i = 0; i < len; i++) {
+            chunk += str[pos + i];
+        }
+
+        // 包装成分块格式: {"chunk":0,"total":3,"data":"..."}
+        String packet = "{\"chunk\":" + String(chunk_index) +
+                       ",\"total\":" + String(total_chunks) +
+                       ",\"data\":\"";
+
+        // 转义 JSON 字符串
+        int escaped_count = 0;
+        for (int j = 0; j < chunk.length(); j++) {
+            char c = chunk[j];
+            if (c == '"' || c == '\\') {
+                packet += '\\';
+                escaped_count++;
+            }
+            packet += c;
+        }
+        packet += "\"}";
+
+        Serial.print("BLE: 发送分块 ");
+        Serial.print(chunk_index + 1);
+        Serial.print("/");
+        Serial.print(total_chunks);
+        Serial.print(" (pos: ");
+        Serial.print(pos);
+        Serial.print(", len: ");
+        Serial.print(len);
+        Serial.print(", 转义: ");
+        Serial.print(escaped_count);
+        Serial.print(", 总计: ");
+        Serial.print(packet.length());
+        Serial.println(" bytes)");
+
+        if (packet.length() > 512) {
+            Serial.print("BLE: 错误！分块过大: ");
+            Serial.println(packet.length());
+            pos += len;
+            chunk_index++;
+            continue;
+        }
+
+        s_status_char->setValue(packet.c_str());
+        if (s_client_connected) {
+            s_status_char->notify();
+        }
+
+        pos += len;
+        chunk_index++;
+        delay(150);
+    }
+
+    Serial.println("BLE: 分块传输完成");
 }
 
 static void draw_ble_icon(void) {
@@ -185,7 +293,7 @@ static void apply_command(const String& cmd) {
         Serial.println(total_modules);
 
         // 每次尝试发送的模块数（动态调整以保证 JSON < 实际 MTU）
-        const int MAX_JSON_SIZE = 250;  // 实际 MTU 约 253 字节，留余量
+        const int MAX_JSON_SIZE = 500;  // 实际 MTU 约 253 字节，留余量
         int modules_to_send = 5;  // 初始值，每个模块约 60 字节
 
         String status;
@@ -239,7 +347,8 @@ static void apply_command(const String& cmd) {
             modules_to_send = max(1, modules_to_send - 1);
 
         }
-
+Serial.print("BLE: JSON ");
+Serial.println(status);
         set_status(status);
         return;
     }
@@ -478,8 +587,19 @@ static void apply_command(const String& cmd) {
     String key;
     if (extract_string(cmd, "key", &key) && extract_int(cmd, "value", &value)) {
         save_config(key, value);
+
+        Serial.print("BLE: 保存配置 ");
+        Serial.print(key);
+        Serial.print(" = ");
+        Serial.println(value);
+
         if (key == "style") {
             app_set_subpage(value);
+        } else {
+            // 对于其他配置项，重新加载当前模块以应用新配置
+            Serial.println("BLE: 重新加载当前模块以应用配置");
+            extern int32_t page_index;
+            app_set_page(page_index, 0);
         }
     }
 
@@ -536,6 +656,10 @@ void ble_config_init(void) {
     if (!s_ble_initialized) {
         Serial.println("BLE: First-time initialization - creating BLE stack...");
         BLEDevice::init(BLE_DEVICE_NAME);
+
+        // 设置 MTU 大小
+        BLEDevice::setMTU(517);  // 517 是 BLE 的最大 MTU (512 + 5 字节头部)
+        Serial.println("BLE: MTU set to 517");
 
         Serial.println("BLE: Creating server...");
         s_ble_server = BLEDevice::createServer();
