@@ -164,35 +164,36 @@ static void apply_command(const String& cmd) {
 
     // 处理分页获取状态请求
     if (cmd.indexOf("\"get_status\"") >= 0) {
-        int page = 0;
-        int page_pos = cmd.indexOf("\"get_status\"");
-        if (page_pos >= 0) {
-            int colon = cmd.indexOf(":", page_pos);
+        int start_idx = 0;
+        int idx_pos = cmd.indexOf("\"get_status\"");
+        if (idx_pos >= 0) {
+            int colon = cmd.indexOf(":", idx_pos);
             if (colon >= 0) {
-                page = cmd.substring(colon + 1).toInt();
+                start_idx = cmd.substring(colon + 1).toInt();
             }
         }
 
-        Serial.print("BLE: 请求状态页 ");
-        Serial.println(page);
+        Serial.print("BLE: 请求状态，起始索引: ");
+        Serial.println(start_idx);
 
         // 获取模块总数
         int total_modules = module_registry_count();
+        Serial.print("BLE: 模块总数: ");
+        Serial.println(total_modules);
 
-        // 每页最多包含的模块数（动态调整以保证 JSON < 实际 MTU）
-        const int MAX_JSON_SIZE = 200;  // 实际 MTU 约 253 字节，留余量
-        int modules_per_page = 3;  // 初始值，每个模块约 60 字节
+        // 每次尝试发送的模块数（动态调整以保证 JSON < 实际 MTU）
+        const int MAX_JSON_SIZE = 250;  // 实际 MTU 约 253 字节，留余量
+        int modules_to_send = 5;  // 初始值，每个模块约 60 字节
 
         String status;
         bool has_more = false;
-        int start_idx = page * modules_per_page;
 
         // 尝试构建 JSON，如果超过限制则减少模块数
-        while (modules_per_page > 0) {
+        while (modules_to_send > 0) {
             status = "{";
 
-            // 第一页包含全局信息
-            if (page == 0) {
+            // 第一次请求（start_idx == 0）包含全局信息
+            if (start_idx == 0) {
                 uint32_t sleep_sec = s_idle_timeout_ms / 1000;
                 status += "\"ok\":true,";
                 status += "\"brightness\":" + String(brightness_max) + ",";
@@ -204,7 +205,7 @@ static void apply_command(const String& cmd) {
 
             status += "\"modules\":[";
 
-            int end_idx = min(start_idx + modules_per_page, total_modules);
+            int end_idx = min(start_idx + modules_to_send, total_modules);
             for (int i = start_idx; i < end_idx; i++) {
                 if (i > start_idx) status += ",";
 
@@ -222,7 +223,7 @@ static void apply_command(const String& cmd) {
 
             status += "],";
             has_more = (end_idx < total_modules);
-            status += "\"page\":" + String(page) + ",";
+            status += "\"start_idx\":" + String(start_idx) + ",";
             status += "\"has_more\":" + String(has_more ? "true" : "false");
             status += "}";
 
@@ -232,22 +233,9 @@ static void apply_command(const String& cmd) {
             }
 
             // 太大了，减少模块数重试
-            modules_per_page = max(1, modules_per_page - 2);
-            Serial.print("BLE: JSON 过大 (");
-            Serial.print(status.length());
-            Serial.print(" 字节)，减少到每页 ");
-            Serial.print(modules_per_page);
-            Serial.println(" 个模块");
-        }
+            modules_to_send = max(1, modules_to_send - 1);
 
-        Serial.print("BLE: 状态页 ");
-        Serial.print(page);
-        Serial.print(" JSON 大小: ");
-        Serial.print(status.length());
-        Serial.print(" 字节，包含 ");
-        Serial.print(min(start_idx + modules_per_page, total_modules) - start_idx);
-        Serial.print(" 个模块，has_more: ");
-        Serial.println(has_more);
+        }
 
         set_status(status);
         return;
