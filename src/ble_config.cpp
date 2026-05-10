@@ -1,4 +1,5 @@
 #include "ble_config.h"
+#include "ble_security.h"
 #include "app_control.h"
 #include "common.h"
 #include "module_registry.h"
@@ -19,8 +20,12 @@ extern uint32_t s_idle_timeout_ms;
 #define BLE_SERVICE_UUID "8c0b8a10-7e3d-4df7-9a2a-1d8d46f8b100"
 #define BLE_CONFIG_CHAR_UUID "8c0b8a11-7e3d-4df7-9a2a-1d8d46f8b100"
 #define BLE_STATUS_CHAR_UUID "8c0b8a12-7e3d-4df7-9a2a-1d8d46f8b100"
+#define BLE_PASSWORD_CHAR_UUID "8c0b8a13-7e3d-4df7-9a2a-1d8d46f8b100"
+#define BLE_AUTH_CHAR_UUID "8c0b8a14-7e3d-4df7-9a2a-1d8d46f8b100"
 
 static BLECharacteristic* s_status_char = nullptr;
+static BLECharacteristic* s_password_char = nullptr;
+static BLECharacteristic* s_auth_char = nullptr;
 static BLEServer* s_ble_server = nullptr;
 static BLEAdvertising* s_ble_advertising = nullptr;
 static String s_pending_cmd;
@@ -28,6 +33,9 @@ static bool s_has_pending_cmd = false;
 static bool s_client_connected = false;
 static bool s_ble_enabled = false;
 static bool s_ble_initialized = false;
+
+// 安全管理器
+static DeviceSecurity deviceSecurity;
 
 // File upload state
 static bool s_upload_in_progress = false;
@@ -554,6 +562,8 @@ class ConfigServerCallbacks : public BLEServerCallbacks {
 
     void onDisconnect(BLEServer* server) override {
         s_client_connected = false;
+        // 断开连接时重置认证状态
+        deviceSecurity.resetAuth();
         if (s_ble_enabled) {
             server->getAdvertising()->start();
         }
@@ -562,6 +572,12 @@ class ConfigServerCallbacks : public BLEServerCallbacks {
 
 class ConfigWriteCallbacks : public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic* characteristic) override {
+        // 检查是否已认证
+        if (!deviceSecurity.checkAuthenticated()) {
+            Serial.println("BLE: Unauthorized access blocked!");
+            return;
+        }
+
         String value = characteristic->getValue().c_str();
         Serial.println("BLE: 写入特征值，长度: " + String(value.length()));
         if (value.length() == 0) return;
@@ -580,6 +596,68 @@ class StatusReadCallbacks : public BLECharacteristicCallbacks {
     }
 };
 
+// 密码特征值回调（读取设备密码）
+class PasswordReadCallbacks : public BLECharacteristicCallbacks {
+    void onRead(BLECharacteristic* characteristic) override {
+        String password = deviceSecurity.getPassword();
+        characteristic->setValue(password.c_str());
+        Serial.println("BLE: Password read by client");
+    }
+};
+
+// 认证特征值回调（验证密码）
+class AuthWriteCallbacks : public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic* characteristic) override {
+        String inputPassword = characteristic->getValue().c_str();
+
+        // 处理 SET_BOUND 命令（绑定成功后设置绑定状态）
+        if (inputPassword == "SET_BOUND") {
+            if (!deviceSecurity.checkAuthenticated()) {
+                Serial.println("BLE: SET_BOUND rejected - not authenticated");
+                characteristic->setValue("UNAUTHORIZED");
+                characteristic->notify();
+                return;
+            }
+
+            deviceSecurity.setBound(true);
+            characteristic->setValue("OK");
+            characteristic->notify();
+            Serial.println("BLE: Device bound successfully");
+            return;
+        }
+
+        // 处理 UNBIND 命令（解绑设备）
+        if (inputPassword == "UNBIND") {
+            if (!deviceSecurity.checkAuthenticated()) {
+                Serial.println("BLE: UNBIND rejected - not authenticated");
+                characteristic->setValue("UNAUTHORIZED");
+                characteristic->notify();
+                return;
+            }
+
+            deviceSecurity.unbind();
+            characteristic->setValue("OK");
+            characteristic->notify();
+            Serial.println("BLE: Device unbound successfully");
+            return;
+        }
+
+        // 正常的密码验证流程
+        bool verified = deviceSecurity.verifyPassword(inputPassword);
+
+        // 返回验证结果
+        String result = verified ? "OK" : "FAIL";
+        characteristic->setValue(result.c_str());
+        characteristic->notify();
+
+        if (verified) {
+            Serial.println("BLE: Client authenticated successfully");
+        } else {
+            Serial.println("BLE: Client authentication failed");
+        }
+    }
+};
+
 void ble_config_init(void) {
     if (s_ble_enabled) {
         Serial.println("BLE: Already enabled, skipping");
@@ -589,6 +667,10 @@ void ble_config_init(void) {
     // 第一次初始化：创建BLE栈和服务
     if (!s_ble_initialized) {
         Serial.println("BLE: First-time initialization - creating BLE stack...");
+
+        // 初始化安全管理器
+        deviceSecurity.init();
+
         BLEDevice::init(BLE_DEVICE_NAME);
 
         // 设置 MTU 大小
@@ -618,6 +700,21 @@ void ble_config_init(void) {
 
         String initial_status = status_json();
         s_status_char->setValue(initial_status.c_str());
+
+        // 创建密码特征值（读取设备密码）
+        s_password_char = service->createCharacteristic(
+            BLE_PASSWORD_CHAR_UUID,
+            BLECharacteristic::PROPERTY_READ
+        );
+        s_password_char->setCallbacks(new PasswordReadCallbacks());
+        s_password_char->setValue(deviceSecurity.getPassword().c_str());
+
+        // 创建认证特征值（验证密码）
+        s_auth_char = service->createCharacteristic(
+            BLE_AUTH_CHAR_UUID,
+            BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY
+        );
+        s_auth_char->setCallbacks(new AuthWriteCallbacks());
 
         Serial.println("BLE: Starting service...");
         service->start();
