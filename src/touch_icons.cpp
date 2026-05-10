@@ -3,22 +3,6 @@
 #include "rgb.h"
 #include <FastLED.h>
 
-void flash_style_hint(uint8_t style) {
-  FastLED.clear();
-  rgb_set_brightness(brightness_max);
-  const uint8_t spacing = MATRIX_WIDTH / 4;
-  for (uint8_t i = 0; i < 4; i++) {
-    uint8_t x = (uint8_t)(2 + i * spacing);
-    uint8_t v = (i == style) ? 80 : 12;
-    rgb_set(x, MATRIX_HEIGHT - 1, v, v, v);
-    if (i == style && x + 1 < MATRIX_WIDTH) {
-      rgb_set(x + 1, MATRIX_HEIGHT - 1, v, v, v);
-    }
-  }
-  FastLED.show();
-  delay(120);
-}
-
 void show_module_hold_hint(void) {
   // Clear screen first
   rgb_clear();
@@ -107,26 +91,27 @@ void show_sleep_hold_hint(void) {
   // Circle with gap at bottom (incomplete circle) - radius increased by 1 pixel
 
   // Left side (extended)
+  rgb_set(center_x - 3, center_y - 2, 60, 0, 0);
   rgb_set(center_x - 3, center_y - 1, 60, 0, 0);
   rgb_set(center_x - 3, center_y, 60, 0, 0);
   rgb_set(center_x - 3, center_y + 1, 60, 0, 0);
   // rgb_set(center_x - 3, center_y + 2, 60, 0, 0);
 
   // Left middle
-  rgb_set(center_x - 2, center_y - 2, 60, 0, 0);
+  rgb_set(center_x - 2, center_y - 3, 60, 0, 0);
   rgb_set(center_x - 2, center_y + 2, 60, 0, 0);
 
   // Top left corner
-  rgb_set(center_x - 1, center_y - 3, 60, 0, 0);
+  rgb_set(center_x - 1, center_y - 4, 60, 0, 0);
 
   // Top
-  rgb_set(center_x, center_y - 3, 60, 0, 0);
+  rgb_set(center_x, center_y - 4, 60, 0, 0);
 
   // Top right corner
-  rgb_set(center_x + 1, center_y - 3, 60, 0, 0);
+  rgb_set(center_x + 1, center_y - 4, 60, 0, 0);
 
   // Right middle
-  rgb_set(center_x + 2, center_y - 2, 60, 0, 0);
+  rgb_set(center_x + 2, center_y - 3, 60, 0, 0);
   rgb_set(center_x + 2, center_y + 2, 60, 0, 0);
 
   // Right side (extended)
@@ -134,6 +119,7 @@ void show_sleep_hold_hint(void) {
   rgb_set(center_x + 3, center_y + 1, 60, 0, 0);
   rgb_set(center_x + 3, center_y, 60, 0, 0);
   rgb_set(center_x + 3, center_y - 1, 60, 0, 0);
+  rgb_set(center_x + 3, center_y - 2, 60, 0, 0);
 
   // Bottom vertical line (power indicator, 3 pixels)
   rgb_set(center_x, center_y + 1, 60, 0, 0);
