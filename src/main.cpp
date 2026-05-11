@@ -276,6 +276,9 @@ void check_btn(){
     btn_status = BTN_NONE;
     ble_config_toggle();
     if (!ble_config_is_enabled()){ //退出蓝牙后重新启动模块
+      // 重置休眠计时器，避免立即休眠
+      sleep_manager_reset_idle_timer();
+
       const module_descriptor_t* current = module_registry_get((uint8_t)page_index);
       int ret;
       if (current && current->unload) {
@@ -335,7 +338,7 @@ void setup() {
   FastLED.setBrightness(brightness_max);
   Serial.printf("[Setup] Restored user brightness to %d\n", user_brightness_max);
 
-  sleep_manager_init(0);
+  sleep_manager_init();
 
   sleep_manager_start();
 }

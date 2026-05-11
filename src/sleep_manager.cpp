@@ -70,7 +70,7 @@ void enter_deep_sleep(void) {
   esp_deep_sleep_start();
 }
 
-int sleep_manager_init(uint8_t key_pin) {
+int sleep_manager_init() {
   if (s_initialized) {
     return -1;
   }
@@ -88,6 +88,11 @@ int sleep_manager_start(void) {
   }
   
   return 0;
+}
+
+void sleep_manager_reset_idle_timer() {
+  last_active = millis();
+  Serial.println("Sleep manager: Idle timer reset");
 }
 
 void sleep_manager_update() {

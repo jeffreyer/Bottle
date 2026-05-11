@@ -684,7 +684,7 @@ static void apply_command(const String& cmd) {
         }
 
         // 根据类型保存
-        if (type == "switch" || type == "select") {
+        if (type == "switch") {
             int int_value;
             if (extract_int(cmd, "value", &int_value)) {
                 Serial.print("BLE: Value (int): ");
@@ -693,6 +693,30 @@ static void apply_command(const String& cmd) {
                     save_config_ns(ns, actual_key, int_value);
                 } else {
                     save_config(key, int_value);
+                }
+            }
+        } else if (type == "select") {
+            // select 类型可能是整数或字符串，先尝试整数
+            int int_value;
+            if (extract_int(cmd, "value", &int_value)) {
+                Serial.print("BLE: Value (int): ");
+                Serial.println(int_value);
+                if (separator > 0) {
+                    save_config_ns(ns, actual_key, int_value);
+                } else {
+                    save_config(key, int_value);
+                }
+            } else {
+                // 尝试字符串
+                String string_value;
+                if (extract_string(cmd, "value", &string_value)) {
+                    Serial.print("BLE: Value (string): ");
+                    Serial.println(string_value);
+                    if (separator > 0) {
+                        save_config_string_ns(ns, actual_key, string_value);
+                    } else {
+                        save_config_string(key, string_value);
+                    }
                 }
             }
         } else if (type == "slider" || type == "number") {
