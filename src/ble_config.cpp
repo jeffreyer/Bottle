@@ -45,6 +45,13 @@ static size_t s_upload_size = 0;
 static size_t s_upload_received = 0;
 static File s_upload_file;
 
+// Config definition upload state
+static bool s_config_def_in_progress = false;
+static String s_config_def_module_id;
+static String s_config_def_buffer;
+static size_t s_config_def_size = 0;
+static size_t s_config_def_received = 0;
+
 // Simple base64 decode table
 static const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -120,6 +127,30 @@ static bool extract_string(const String& json, const char* key, String* out) {
     return true;
 }
 
+static bool extract_float(const String& json, const char* key, float* out) {
+    String marker = String("\"") + key + "\"";
+    int pos = json.indexOf(marker);
+    if (pos < 0) return false;
+
+    pos = json.indexOf(':', pos + marker.length());
+    if (pos < 0) return false;
+    pos++;
+
+    while (pos < (int)json.length() && isspace((unsigned char)json[pos])) pos++;
+
+    int end = pos;
+    if (end < (int)json.length() && (json[end] == '-' || json[end] == '+')) end++;
+    while (end < (int)json.length() && isdigit((unsigned char)json[end])) end++;
+    if (end < (int)json.length() && json[end] == '.') {
+        end++;
+        while (end < (int)json.length() && isdigit((unsigned char)json[end])) end++;
+    }
+    if (end == pos) return false;
+
+    *out = json.substring(pos, end).toFloat();
+    return true;
+}
+
 static String status_json(bool include_modules = false) {
     uint32_t sleep_sec = s_idle_timeout_ms / 1000;
     String s = "{";
@@ -130,7 +161,7 @@ static String status_json(bool include_modules = false) {
     s += ",\"subpage\":" + String(subpage_index);
     s += ",\"page_count\":" + String(app_get_page_count());
     if (include_modules) {
-        s += ",\"modules\":" + module_registry_status_json();
+        // s += ",\"modules\":" + module_registry_status_json();
     }
     s += "}";
     return s;
@@ -224,7 +255,6 @@ static void set_status(const String& s) {
         delay(150);
     }
 
-    Serial.println("BLE: 分块传输完成");
 }
 
 static void draw_ble_icon(void) {
@@ -251,7 +281,6 @@ static void draw_ble_icon(void) {
 }
 
 static void apply_command(const String& cmd) {
-    Serial.println("BLE: 收到命令: " + cmd);
     int value = 0;
 
     // 处理分页获取状态请求
@@ -405,19 +434,6 @@ static void apply_command(const String& cmd) {
         if (s_upload_file) {
             s_upload_file.close();
         }
-
-        // 读取并打印文件内容用于调试
-        String filepath = "/spiffs/" + s_upload_filename;
-        File debugFile = SPIFFS.open(filepath.c_str(), FILE_READ);
-        if (debugFile) {
-            Serial.println("BLE: === 文件内容开始 ===");
-            while (debugFile.available()) {
-                Serial.write(debugFile.read());
-            }
-            Serial.println("\nBLE: === 文件内容结束 ===");
-            debugFile.close();
-        }
-
         s_upload_in_progress = false;
         String uploaded_module_id = s_upload_module_id;  // 保存模块ID
         s_upload_module_id = "";
@@ -441,7 +457,124 @@ static void apply_command(const String& cmd) {
             }
         }
 
-        set_status(status_json(true));  // 返回完整状态包含模块列表
+        set_status(status_json(false));  // 不返回模块列表，小程序端会主动请求
+        return;
+    }
+
+    // 处理模块配置定义
+    if (cmd.indexOf("\"module_config_def\"") >= 0) {
+        // 提取模块ID
+        int id_pos = cmd.indexOf("\"id\"");
+        String module_id = "";
+        if (id_pos >= 0) {
+            int start = cmd.indexOf("\"", id_pos + 5) + 1;
+            int end = cmd.indexOf("\"", start);
+            module_id = cmd.substring(start, end);
+        }
+
+        if (module_id.length() > 0) {
+            // 提取配置定义（config数组）
+            int config_pos = cmd.indexOf("\"config\"");
+            if (config_pos >= 0) {
+                int start = cmd.indexOf("[", config_pos);
+                int end = cmd.lastIndexOf("]");
+                if (start >= 0 && end > start) {
+
+                    String config_json = cmd.substring(start, end + 1);
+
+                    // 存储配置定义到NVS (使用短键名以符合NVS 15字符限制)
+                    String key = "cfg_" + module_id;
+                    save_config_string(key, config_json);
+
+                }
+            }
+        }
+
+        set_status("{\"ok\":true}");
+        return;
+    }
+
+    // 处理配置定义分段上传开始
+    if (cmd.indexOf("\"config_def_start\"") >= 0) {
+
+        int id_pos = cmd.indexOf("\"id\"");
+        String module_id = "";
+        if (id_pos >= 0) {
+            int start = cmd.indexOf("\"", id_pos + 5) + 1;
+            int end = cmd.indexOf("\"", start);
+            module_id = cmd.substring(start, end);
+        }
+
+        int size = 0;
+        int size_pos = cmd.indexOf("\"size\"");
+        if (size_pos >= 0) {
+            int start = cmd.indexOf(":", size_pos) + 1;
+            int end = cmd.indexOf(",", start);
+            if (end < 0) end = cmd.indexOf("}", start);
+            size = cmd.substring(start, end).toInt();
+        }
+
+        s_config_def_in_progress = true;
+        s_config_def_module_id = module_id;
+        s_config_def_size = size;
+        s_config_def_received = 0;
+        s_config_def_buffer = "";
+        s_config_def_buffer.reserve(size + 100);
+
+        set_status("{\"ok\":true}");
+        return;
+    }
+
+    // 处理配置定义数据块
+    if (cmd.indexOf("\"config_def_chunk\"") >= 0) {
+
+        if (!s_config_def_in_progress) {
+            Serial.println("BLE: 错误 - 未收到 config_def_start，忽略此数据块");
+            set_status("{\"ok\":true}");
+            return;
+        }
+
+        int data_pos = cmd.indexOf("\"data\"");
+        if (data_pos >= 0) {
+            int start = cmd.indexOf("\"", data_pos + 7) + 1;
+            int end = cmd.indexOf("\"", start);
+            String encoded = cmd.substring(start, end);
+
+            // Base64 解码
+            size_t max_decoded_len = (encoded.length() * 3) / 4 + 1;
+            uint8_t* decoded = (uint8_t*)malloc(max_decoded_len);
+            if (decoded) {
+                size_t decoded_len = base64_decode(encoded.c_str(), encoded.length(), decoded);
+
+                if (decoded_len > 0) {
+                    for (size_t i = 0; i < decoded_len; i++) {
+                        s_config_def_buffer += (char)decoded[i];
+                    }
+                    s_config_def_received += decoded_len;
+
+                }
+
+                free(decoded);
+            }
+        }
+        return;
+    }
+
+    // 处理配置定义上传完成
+    if (cmd.indexOf("\"config_def_complete\"") >= 0 && s_config_def_in_progress) {
+
+        // 存储配置定义到NVS (使用短键名以符合NVS 15字符限制)
+        String key = "cfg_" + s_config_def_module_id;
+        save_config_string(key, s_config_def_buffer);
+
+        s_config_def_in_progress = false;
+        s_config_def_buffer = "";
+
+        // 重新加载模块注册表以更新 config_count
+        Serial.println("BLE: 重新加载模块注册表以更新配置项数量...");
+        module_registry_init();
+
+        set_status(status_json(false));  // 不返回模块列表，小程序端会主动请求
         return;
     }
 
@@ -528,23 +661,86 @@ static void apply_command(const String& cmd) {
         return;
     }
 
-    String key;
-    if (extract_string(cmd, "key", &key) && extract_int(cmd, "value", &value)) {
-        save_config(key, value);
-
-        Serial.print("BLE: 保存配置 ");
+    // 统一配置保存处理（根据type字段）
+    String key, type;
+    if (extract_string(cmd, "key", &key) && extract_string(cmd, "type", &type)) {
+        Serial.print("BLE: Saving config - key: ");
         Serial.print(key);
-        Serial.print(" = ");
-        Serial.println(value);
+        Serial.print(", type: ");
+        Serial.print(type);
 
-        if (key == "style") {
-            app_set_subpage(value);
+        // 分离命名空间和键名
+        int separator = key.indexOf('_');
+        String ns = separator > 0 ? key.substring(0, separator) : "";
+        String actual_key = separator > 0 ? key.substring(separator + 1) : key;
+
+        if (separator > 0) {
+            Serial.print(", ns: ");
+            Serial.print(ns);
+            Serial.print(", actual_key: ");
+            Serial.println(actual_key);
         } else {
-            // 对于其他配置项，重新加载当前模块以应用新配置
-            Serial.println("BLE: 重新加载当前模块以应用配置");
+            Serial.println();
+        }
+
+        // 根据类型保存
+        if (type == "switch" || type == "select") {
+            int int_value;
+            if (extract_int(cmd, "value", &int_value)) {
+                Serial.print("BLE: Value (int): ");
+                Serial.println(int_value);
+                if (separator > 0) {
+                    save_config_ns(ns, actual_key, int_value);
+                } else {
+                    save_config(key, int_value);
+                }
+            }
+        } else if (type == "slider" || type == "number") {
+            float float_value;
+            if (extract_float(cmd, "value", &float_value)) {
+                Serial.print("BLE: Value (float): ");
+                Serial.println(float_value);
+                // 整数值保存为int，小数保存为float
+                if (float_value == (int)float_value) {
+                    if (separator > 0) {
+                        save_config_ns(ns, actual_key, (int)float_value);
+                    } else {
+                        save_config(key, (int)float_value);
+                    }
+                } else {
+                    if (separator > 0) {
+                        save_config_float_ns(ns, actual_key, float_value);
+                    } else {
+                        save_config_float(key, float_value);
+                    }
+                }
+            }
+        } else if (type == "text" || type == "color") {
+            String string_value;
+            if (extract_string(cmd, "value", &string_value)) {
+                Serial.print("BLE: Value (string): ");
+                Serial.println(string_value);
+                if (separator > 0) {
+                    save_config_string_ns(ns, actual_key, string_value);
+                } else {
+                    save_config_string(key, string_value);
+                }
+            }
+        }
+
+        // 重新加载当前模块以应用新配置
+        if (key == "style") {
+            int int_value;
+            if (extract_int(cmd, "value", &int_value)) {
+                app_set_subpage(int_value);
+            }
+        } else {
             extern int32_t page_index;
             app_set_page(page_index, 0);
         }
+
+        set_status(status_json());
+        return;
     }
 
     set_status(status_json());
@@ -579,10 +775,8 @@ class ConfigWriteCallbacks : public BLECharacteristicCallbacks {
         }
 
         String value = characteristic->getValue().c_str();
-        Serial.println("BLE: 写入特征值，长度: " + String(value.length()));
         if (value.length() == 0) return;
 
-        Serial.println("BLE: 接收到命令: " + value);
         s_pending_cmd = value;
         s_has_pending_cmd = true;
     }

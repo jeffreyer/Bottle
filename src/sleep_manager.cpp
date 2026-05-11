@@ -106,6 +106,7 @@ void sleep_manager_update() {
       // 渐变完成，检查是否降到0
       if (rgb_get_brightness() == 0) {
         s_preparing_sleep = false;
+        main_save_config();
         enter_deep_sleep();
         return;
       }
@@ -149,6 +150,7 @@ void sleep_manager_update() {
       Serial.println("Starting sleep preparation: fading brightness to 0");
     } else {
       // 亮度已经是0，直接进入睡眠
+      main_save_config();
       enter_deep_sleep();
     }
     return;

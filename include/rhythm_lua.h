@@ -12,6 +12,4 @@ int loop_rhythm_lua_module(void);
 
 #ifdef __cplusplus
 }
-String rhythm_lua_module_runtime_status_json(void);
-String rhythm_lua_module_configs_json(void);
 #endif

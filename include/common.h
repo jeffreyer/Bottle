@@ -25,3 +25,22 @@ extern uint8_t user_brightness_max;
 int load_config(String key);
 
 void save_config(String key,int value);
+
+// 字符串配置支持
+String load_config_string(String key);
+void save_config_string(String key, String value);
+
+// 浮点数配置支持
+float load_config_float(String key);
+void save_config_float(String key, float value);
+
+// 带命名空间的配置函数
+void save_config_ns(String ns, String key, int value);
+int load_config_ns(String ns, String key);
+void save_config_string_ns(String ns, String key, String value);
+String load_config_string_ns(String ns, String key);
+void save_config_float_ns(String ns, String key, float value);
+float load_config_float_ns(String ns, String key);
+
+void main_load_config();
+void main_save_config();

@@ -49,7 +49,6 @@ bool module_registry_is_enabled(uint8_t index);
 void module_registry_set_enabled(uint8_t index, bool enabled);
 int32_t module_registry_next_enabled(int32_t index);
 int32_t module_registry_normalize_index(int32_t index);
-String module_registry_status_json(void);
 String module_registry_manifest_json(int32_t index);
 
 #ifdef __cplusplus

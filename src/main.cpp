@@ -65,7 +65,7 @@ void app_set_subpage(int32_t subpage) {
   subpage_index = subpage;
   const module_descriptor_t* module = module_registry_get((uint8_t)page_index);
   if (module && String(module->id) == "rhythm") {
-    save_config("style", subpage_index);
+    save_config_ns("rhythm", "style", subpage_index);
   }
 }
 
@@ -329,6 +329,11 @@ void setup() {
     Serial.printf("[Setup] Running module setup for: %s\n", module->name);
     module->setup();
   }
+
+  // Restore user brightness after module setup
+  brightness_max = user_brightness_max;
+  FastLED.setBrightness(brightness_max);
+  Serial.printf("[Setup] Restored user brightness to %d\n", user_brightness_max);
 
   sleep_manager_init(0);
 

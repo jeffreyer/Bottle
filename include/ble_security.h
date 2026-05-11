@@ -43,14 +43,10 @@ public:
         if (devicePassword.length() == 0) {
             devicePassword = generatePassword();
             prefs.putString("password", devicePassword);
-            Serial.println("BLE Security: Generated new password");
-        } else {
-            Serial.println("BLE Security: Loaded password from NVS");
         }
 
         // 加载绑定状态
         isBound = prefs.getBool("bound", false);
-        Serial.println("BLE Security: Bound status: " + String(isBound ? "true" : "false"));
 
         prefs.end();
     }
@@ -84,10 +80,8 @@ public:
         if (inputPassword == devicePassword) {
             isAuthenticated = true;
             authTime = millis();
-            Serial.println("BLE Security: Password verified successfully");
             return true;
         } else {
-            Serial.println("BLE Security: Password verification failed");
             return false;
         }
     }
@@ -102,7 +96,6 @@ public:
 
         // 检查认证是否过期
         if (millis() - authTime > AUTH_TIMEOUT_MS) {
-            Serial.println("BLE Security: Authentication expired");
             isAuthenticated = false;
             return false;
         }
@@ -130,8 +123,6 @@ public:
 
         isAuthenticated = false;
         authTime = 0;
-
-        Serial.println("BLE Security: Password regenerated");
     }
 
     /**
@@ -142,7 +133,6 @@ public:
         prefs.begin("ble_sec", false);
         prefs.putBool("bound", bound);
         prefs.end();
-        Serial.println("BLE Security: Bound status set to: " + String(bound ? "true" : "false"));
     }
 
     /**
@@ -158,6 +148,5 @@ public:
     void unbind() {
         setBound(false);
         regeneratePassword();
-        Serial.println("BLE Security: Device unbound");
     }
 };

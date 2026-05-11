@@ -303,7 +303,7 @@ int setup_candle(){
     }
     
     if (mem_subindex3<0)
-        mem_subindex3=load_config("candle_index");
+        mem_subindex3=load_config_ns("candle", "candle_index");
     subpage_index=mem_subindex3;
     
     return 0;
@@ -312,7 +312,7 @@ int setup_candle(){
 
 int unload_candle(){
     mem_subindex3=subpage_index;
-    save_config("candle_index",subpage_index);
+    save_config_ns("candle", "candle_index", subpage_index);
     gravity_sensor_sleep();
     return 0;
 }

@@ -1,4 +1,5 @@
 #include "module_registry.h"
+#include "common.h"
 #include "candle.h"
 #include "rhythm_lua.h"
 #include "sandglass.h"
@@ -16,25 +17,13 @@ extern "C" {
 
 #define MAX_DYNAMIC_MODULES 20
 
-static const module_config_item_t water_configs[] = {
-  {"color_custom", "自定义颜色", MODULE_CONFIG_BOOL, 0, 1, 0, nullptr},
-  {"color_hue", "色调", MODULE_CONFIG_INT, 0, 255, 160, nullptr},
-};
-
-static const module_config_item_t candle_configs[] = {
-  {"candle_index", "Color", MODULE_CONFIG_INT, 0, 99, 0, nullptr},
-};
-
-static const module_config_item_t sand_configs[] = {
-  {"sand_speed", "Speed", MODULE_CONFIG_INT, 1, 10, 5, nullptr},
-};
-
-// Built-in modules (static)
-static const module_descriptor_t k_builtin_modules[] = {
-  {"rhythm", "跳动音律", "3.0.0", "Bottle", "Lua-powered audio spectrum visualizer", "lua", "lua-5.4.7", nullptr, setup_rhythm_lua_module, unload_rhythm_lua_module, loop_rhythm_lua_module, nullptr, 18, true},
-  {"water", "海洋流体", "1.0.0", "Bottle", "Gravity liquid simulation", "native", "native", nullptr, setup_fluid, unload_fluid, fluid_loop, water_configs, (uint8_t)(sizeof(water_configs) / sizeof(water_configs[0])), true},
-  {"candle", "蜡烛焰火", "1.0.0", "Bottle", "Gravity-aware candle flame", "native", "native", nullptr, setup_candle, unload_candle, candle_loop, candle_configs, (uint8_t)(sizeof(candle_configs) / sizeof(candle_configs[0])), true},
-  {"sandglass", "沙漏", "1.0.0", "Bottle", "Gravity sandglass", "native", "native", nullptr, setup_sand, unload_sand, sand_loop, sand_configs, (uint8_t)(sizeof(sand_configs) / sizeof(sand_configs[0])), true},
+// Built-in modules (static) - configs now stored in NVS as JSON
+// 移除 const 以便在初始化时更新 config_count
+static module_descriptor_t k_builtin_modules[] = {
+  {"rhythm", "音乐律动", "3.0.0", "Bottle", "Lua-powered audio spectrum visualizer", "lua", "lua-5.4.7", nullptr, setup_rhythm_lua_module, unload_rhythm_lua_module, loop_rhythm_lua_module, nullptr, 0, true},
+  {"water", "海洋流体", "1.0.0", "Bottle", "Gravity liquid simulation", "native", "native", nullptr, setup_fluid, unload_fluid, fluid_loop, nullptr, 0, true},
+  {"candle", "蜡烛焰火", "1.0.0", "Bottle", "Gravity-aware candle flame", "native", "native", nullptr, setup_candle, unload_candle, candle_loop, nullptr, 0, true},
+  {"sandglass", "沙漏", "1.0.0", "Bottle", "Gravity sandglass", "native", "native", nullptr, setup_sand, unload_sand, sand_loop, nullptr, 0, true},
 };
 
 // Dynamic modules storage
@@ -75,6 +64,124 @@ static String json_escape(const char* value) {
     value++;
   }
   return s;
+}
+
+// 初始化Native模块的配置定义（首次运行时保存到NVS）
+static void init_native_module_configs() {
+  // Rhythm module config (18 items)
+  String rhythm_config = "[";
+  rhythm_config += "{\"type\":\"select\",\"key\":\"style\",\"label\":\"风格\",\"default\":0,";
+  rhythm_config += "\"options\":[{\"label\":\"绿峰\",\"value\":0},{\"label\":\"彩虹\",\"value\":1},{\"label\":\"分裂\",\"value\":2},{\"label\":\"流动\",\"value\":3}]}";
+  rhythm_config += ",{\"type\":\"slider\",\"key\":\"sensitivity\",\"label\":\"灵敏度\",\"min\":1,\"max\":50,\"step\":1,\"default\":12}";
+
+  // 17 frequency band gains
+  const char* band_labels[] = {
+    "低音0", "低音1", "低音2", "低音3",
+    "中低4", "中低5", "中音6", "中音7",
+    "中音8", "中音9", "中高10", "中高11",
+    "高音12", "高音13", "高音14", "高音15",
+    "超高16"
+  };
+  const int band_defaults[] = {4, 5, 5, 5, 6, 8, 11, 11, 15, 17, 30, 34, 36, 36, 38, 38, 10};
+
+  for (int i = 0; i < 17; i++) {
+    rhythm_config += ",{\"type\":\"slider\",\"key\":\"band_" + String(i) + "\",\"label\":\"" + String(band_labels[i]) + "\"";
+    rhythm_config += ",\"min\":0,\"max\":100,\"step\":1,\"default\":" + String(band_defaults[i]) + "}";
+  }
+  rhythm_config += "]";
+
+  String saved;
+  String rhythm_key = "cfg_rhythm";
+  if (load_config_string(rhythm_key).length() == 0) {
+    Serial.print("Module registry: Saving rhythm config (");
+    Serial.print(rhythm_config.length());
+    Serial.println(" bytes)");
+    save_config_string(rhythm_key, rhythm_config);
+    saved = load_config_string(rhythm_key);
+    Serial.print("Module registry: Verified rhythm config length: ");
+    Serial.println(saved.length());
+  }
+
+  // Water module config
+  String water_config = "[";
+  water_config += "{\"type\":\"switch\",\"key\":\"color_custom\",\"label\":\"自定义颜色\",\"default\":0}";
+  water_config += ",{\"type\":\"color\",\"key\":\"color_hue\",\"label\":\"颜色\",\"default\":\"#00FFAE\"}";
+  water_config += "]";
+
+  String water_key = "cfg_water";
+  String existing = load_config_string(water_key);
+  Serial.print("Module registry: cfg_water existing length: ");
+  Serial.println(existing.length());
+  if (existing.length() == 0) {
+    Serial.print("Module registry: Saving water config (");
+    Serial.print(water_config.length());
+    Serial.println(" bytes)");
+    save_config_string(water_key, water_config);
+    // 验证保存
+    saved = load_config_string(water_key);
+    Serial.print("Module registry: Verified water config length: ");
+    Serial.println(saved.length());
+  }
+
+  // Candle module config
+  String candle_config = "[";
+  candle_config += "{\"type\":\"slider\",\"key\":\"candle_index\",\"label\":\"Color\",\"min\":0,\"max\":99,\"step\":1,\"default\":0}";
+  candle_config += "]";
+
+  String candle_key = "cfg_candle";
+  if (load_config_string(candle_key).length() == 0) {
+    Serial.print("Module registry: Saving candle config (");
+    Serial.print(candle_config.length());
+    Serial.println(" bytes)");
+    save_config_string(candle_key, candle_config);
+    saved = load_config_string(candle_key);
+    Serial.print("Module registry: Verified candle config length: ");
+    Serial.println(saved.length());
+  }
+
+  // Sandglass module config
+  String sand_config = "[";
+  sand_config += "{\"type\":\"slider\",\"key\":\"sand_speed\",\"label\":\"Speed\",\"min\":1,\"max\":10,\"step\":1,\"default\":5}";
+  sand_config += "]";
+
+  String sand_key = "cfg_sandglass";
+  if (load_config_string(sand_key).length() == 0) {
+    Serial.print("Module registry: Saving sandglass config (");
+    Serial.print(sand_config.length());
+    Serial.println(" bytes)");
+    save_config_string(sand_key, sand_config);
+    saved = load_config_string(sand_key);
+    Serial.print("Module registry: Verified sandglass config length: ");
+    Serial.println(saved.length());
+  }
+}
+
+// 更新所有模块的 config_count（从NVS读取配置定义）
+static void update_module_config_counts() {
+  uint8_t builtin_count = sizeof(k_builtin_modules) / sizeof(k_builtin_modules[0]);
+
+  // 更新 builtin 模块的 config_count
+  for (uint8_t i = 0; i < builtin_count; i++) {
+    module_descriptor_t* module = &k_builtin_modules[i];
+    if (module->id != nullptr && strlen(module->id) > 0) {
+      String config_def_key = String("cfg_") + module->id;
+      String config_def = load_config_string(config_def_key);
+      if (config_def.length() > 0) {
+        // 计算配置项数量
+        int count = 0;
+        int pos = 0;
+        while ((pos = config_def.indexOf("\"key\"", pos)) >= 0) {
+          count++;
+          pos += 5;
+        }
+        module->config_count = count;
+        Serial.print("Module registry: Updated ");
+        Serial.print(module->id);
+        Serial.print(" config_count = ");
+        Serial.println(count);
+      }
+    }
+  }
 }
 
 static String config_type_name(module_config_type_t type) {
@@ -203,10 +310,26 @@ static bool load_dynamic_lua_module(const char* filename) {
   module->config_count = 0;
   module->built_in = false;
 
+  // 从 NVS 读取配置定义并计算 config_count
+  if (module->id != nullptr && strlen(module->id) > 0) {
+    String config_def_key = String("cfg_") + module->id;
+    String config_def = load_config_string(config_def_key);
+    if (config_def.length() > 0) {
+      // 计算配置项数量（简单统计 "key" 出现次数）
+      int count = 0;
+      int pos = 0;
+      while ((pos = config_def.indexOf("\"key\"", pos)) >= 0) {
+        count++;
+        pos += 5;
+      }
+      module->config_count = count;
+    }
+  }
+
   Serial.print("  ID: ");
-  Serial.print(module->id);
+  Serial.print(module->id ? module->id : "NULL");
   Serial.print(", Name: ");
-  Serial.println(module->name);
+  Serial.println(module->name ? module->name : "NULL");
 
   s_dynamic_module_count++;
   return true;
@@ -247,10 +370,7 @@ static void scan_dynamic_modules(void) {
 
     // Check if it's a Lua file
     if (filename.endsWith(".lua")) {
-      // Skip built-in Lua modules
-      if (filename != "rhythm.lua") {
-        load_dynamic_lua_module(filename.c_str());
-      }
+      load_dynamic_lua_module(filename.c_str());
     }
 
     file = root.openNextFile();
@@ -283,11 +403,17 @@ static void build_module_list(void) {
 void module_registry_init(void) {
   Serial.println("Module registry: Initializing...");
 
+  // Initialize native module configs (first run only)
+  init_native_module_configs();
+
   // Scan for dynamic modules
   scan_dynamic_modules();
 
   // Build combined module list
   build_module_list();
+
+  // Update config_count for all modules from NVS
+  update_module_config_counts();
 
   // Load enabled state from preferences
   Preferences prefs;
@@ -327,11 +453,6 @@ bool module_registry_is_enabled(uint8_t index) {
 void module_registry_set_enabled(uint8_t index, bool enabled) {
   if (index >= s_total_module_count) return;
 
-  Serial.print("module_registry_set_enabled: index=");
-  Serial.print(index);
-  Serial.print(", enabled=");
-  Serial.println(enabled);
-
   if (!enabled) {
     bool other_enabled = false;
     for (uint8_t i = 0; i < s_total_module_count; i++) {
@@ -353,8 +474,6 @@ void module_registry_set_enabled(uint8_t index, bool enabled) {
   prefs.putBool(key.c_str(), enabled);
   prefs.end();
 
-  Serial.print("module_registry_set_enabled: 已保存到 Preferences, key=");
-  Serial.println(key);
 }
 
 int32_t module_registry_next_enabled(int32_t index) {
@@ -374,69 +493,186 @@ int32_t module_registry_normalize_index(int32_t index) {
   return index;
 }
 
+// Helper function to inject current config values into config JSON
+static String inject_config_values(const String& config_json, const char* module_id) {
+  if (config_json.length() == 0 || config_json == "[]") {
+    return config_json;
+  }
+
+  String ns = String(module_id);
+  String result = "";
+  int pos = 0;
+
+  while (pos < (int)config_json.length()) {
+    // Find next config object
+    int obj_start = config_json.indexOf('{', pos);
+    if (obj_start < 0) {
+      result += config_json.substring(pos);
+      break;
+    }
+
+    // Copy everything before the object
+    result += config_json.substring(pos, obj_start + 1);
+
+    // Find the end of this object (handle nested braces)
+    int obj_end = obj_start + 1;
+    int brace_count = 1;
+    bool in_string = false;
+    bool escape_next = false;
+
+    while (obj_end < (int)config_json.length() && brace_count > 0) {
+      char c = config_json[obj_end];
+
+      if (escape_next) {
+        escape_next = false;
+      } else if (c == '\\') {
+        escape_next = true;
+      } else if (c == '"') {
+        in_string = !in_string;
+      } else if (!in_string) {
+        if (c == '{') {
+          brace_count++;
+        } else if (c == '}') {
+          brace_count--;
+        }
+      }
+
+      if (brace_count > 0) {
+        obj_end++;
+      }
+    }
+
+    if (brace_count != 0) {
+      result += config_json.substring(obj_start + 1);
+      break;
+    }
+
+    String obj_content = config_json.substring(obj_start + 1, obj_end);
+
+    // Extract key
+    String key = "";
+    int key_pos = obj_content.indexOf("\"key\"");
+    if (key_pos >= 0) {
+      int colon = obj_content.indexOf(':', key_pos);
+      if (colon >= 0) {
+        int quote1 = obj_content.indexOf('"', colon);
+        int quote2 = obj_content.indexOf('"', quote1 + 1);
+        if (quote1 >= 0 && quote2 > quote1) {
+          key = obj_content.substring(quote1 + 1, quote2);
+        }
+      }
+    }
+
+    // Extract type
+    String type = "";
+    int type_pos = obj_content.indexOf("\"type\"");
+    if (type_pos >= 0) {
+      int colon = obj_content.indexOf(':', type_pos);
+      if (colon >= 0) {
+        int quote1 = obj_content.indexOf('"', colon);
+        int quote2 = obj_content.indexOf('"', quote1 + 1);
+        if (quote1 >= 0 && quote2 > quote1) {
+          type = obj_content.substring(quote1 + 1, quote2);
+        }
+      }
+    }
+
+    // Read current value from NVS (only if key exists)
+    String value_str = "";
+    if (key.length() > 0 && type.length() > 0) {
+      Preferences prefs;
+      prefs.begin(ns.c_str(), true);
+      bool key_exists = prefs.isKey(key.c_str());
+
+      if (key_exists) {
+        if (type == "slider" || type == "number") {
+          // Try both float and int (slider values might be saved as either type)
+          float float_value = prefs.getFloat(key.c_str(), 0.0f);
+          int int_value = prefs.getInt(key.c_str(), 0);
+
+          // Prefer non-zero float, then non-zero int
+          if (float_value != 0.0f) {
+            value_str = String(float_value);
+          } else if (int_value != 0) {
+            value_str = String((float)int_value);
+          }
+        } else if (type == "switch") {
+          int int_value = prefs.getInt(key.c_str(), 0);
+          value_str = String(int_value);
+        } else if (type == "text" || type == "color") {
+          String str_value = prefs.getString(key.c_str(), "");
+          if (str_value.length() > 0) {
+            value_str = "\"" + json_escape(str_value.c_str()) + "\"";
+          }
+        } else if (type == "select") {
+          // Select can be either string or int, try string first
+          String str_value = prefs.getString(key.c_str(), "");
+          if (str_value.length() > 0) {
+            value_str = "\"" + json_escape(str_value.c_str()) + "\"";
+          } else {
+            int int_value = prefs.getInt(key.c_str(), 0);
+            if (int_value != 0) {
+              value_str = String(int_value);
+            }
+          }
+        }
+      }
+
+      prefs.end();
+    }
+
+    // Copy object content
+    result += obj_content;
+
+    // Add value field if we have one
+    if (value_str.length() > 0) {
+      result += ",\"value\":" + value_str;
+    }
+
+    result += "}";
+    pos = obj_end + 1;
+  }
+
+  return result;
+}
+
 String module_registry_manifest_json(int32_t index) {
   const module_descriptor_t* module = module_registry_get((uint8_t)index);
   if (!module) return "{}";
 
   String s = "{";
-  s += "\"id\":\"" + json_escape(module->id) + "\"";
-  s += ",\"name\":\"" + json_escape(module->name) + "\"";
-  s += ",\"version\":\"" + json_escape(module->version) + "\"";
-  s += ",\"author\":\"" + json_escape(module->author) + "\"";
-  s += ",\"description\":\"" + json_escape(module->description) + "\"";
-  s += ",\"host\":\"" + json_escape(module->host) + "\"";
-  s += ",\"runtime\":\"" + json_escape(module->runtime) + "\"";
+  s += "\"id\":\"" + json_escape(module->id ? module->id : "") + "\"";
+  s += ",\"name\":\"" + json_escape(module->name ? module->name : "") + "\"";
+  s += ",\"version\":\"" + json_escape(module->version ? module->version : "") + "\"";
+  s += ",\"author\":\"" + json_escape(module->author ? module->author : "") + "\"";
+  s += ",\"description\":\"" + json_escape(module->description ? module->description : "") + "\"";
+  s += ",\"host\":\"" + json_escape(module->host ? module->host : "") + "\"";
+  s += ",\"runtime\":\"" + json_escape(module->runtime ? module->runtime : "") + "\"";
+
   if (module->script_path) {
     s += ",\"script_path\":\"" + json_escape(module->script_path) + "\"";
   }
+
   s += ",\"builtin\":" + String(module->built_in ? "true" : "false");
   s += ",\"enabled\":" + String(module_registry_is_enabled((uint8_t)index) ? "true" : "false");
-  if (String(module->id) == "rhythm") {
-    // s += ",\"runtime_status\":" + rhythm_lua_module_runtime_status_json();
-  }
   s += ",\"configs\":";
-  if (String(module->id) == "rhythm") {
-    s += rhythm_lua_module_configs_json();
-  } else {
-    s += "[";
-    for (uint8_t i = 0; i < module->config_count; i++) {
-      const module_config_item_t& cfg = module->configs[i];
-      if (i > 0) s += ",";
-      s += "{";
-      s += "\"key\":\"" + json_escape(cfg.key) + "\"";
-      s += ",\"label\":\"" + json_escape(cfg.label) + "\"";
-      s += ",\"type\":\"" + config_type_name(cfg.type) + "\"";
-      s += ",\"min\":" + String(cfg.min_value);
-      s += ",\"max\":" + String(cfg.max_value);
-      s += ",\"default\":" + String(cfg.default_value);
-      if (cfg.options) {
-        s += ",\"options\":\"" + json_escape(cfg.options) + "\"";
-      }
-      s += "}";
+
+  // 统一从 NVS 读取配置定义（Native和Lua模块都使用JSON格式）
+  if (module->id != nullptr) {
+    String config_def_key = String("cfg_") + module->id;
+    String config_def = load_config_string(config_def_key);
+    if (config_def.length() > 0) {
+      // 注入当前配置值
+      String config_with_values = inject_config_values(config_def, module->id);
+      s += config_with_values;
+    } else {
+      s += "[]";
     }
-    s += "]";
+  } else {
+    s += "[]";
   }
+
   s += "}";
-  return s;
-}
-
-String module_registry_status_json(void) {
-  String s = "[";
-  for (uint8_t i = 0; i < s_total_module_count; i++) {
-    const module_descriptor_t* module = s_all_modules[i];
-
-    if (i > 0) s += ",";
-
-    s += "{";
-    s += "\"i\":" + String(i);
-    s += ",\"id\":\"" + json_escape(module->id) + "\"";
-    s += ",\"n\":\"" + json_escape(module->name) + "\"";
-    s += ",\"b\":" + String(module->built_in ? "1" : "0");
-    s += ",\"e\":" + String(module_registry_is_enabled(i) ? "1" : "0");
-    s += ",\"c\":" + String(module->config_count);
-    s += "}";
-  }
-  s += "]";
   return s;
 }
 
@@ -485,6 +721,9 @@ static int dynamic_lua_setup(void) {
 
   luaL_openlibs(L);
   register_lua_hardware_apis(L);
+
+  // 注入 CONFIG 全局表（从 NVS 读取配置）
+  inject_lua_config_table(L, module->id);
 
   // Load script from SPIFFS
   String filepath = String("/spiffs/") + module->script_path;

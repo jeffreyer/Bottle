@@ -141,13 +141,28 @@ static void sim_task(void* arg) {
     FastLED.setBrightness(10);
 
     if (mem_subindex2<0)
-        mem_subindex2=load_config("sim_index");
+        mem_subindex2=load_config_ns("water_sim", "sim_index");
     subpage_index=mem_subindex2;
 
     // Load custom color settings
-    int custom_color_enabled = load_config("color_custom");
-    int custom_color_hue = load_config("color_hue");
-    
+    int custom_color_enabled = load_config_ns("water", "color_custom");
+    String custom_color_hex = load_config_string_ns("water", "color_hue");
+
+    // Convert hex color to HSV hue (0-255)
+    uint8_t custom_color_hue = 160; // default hue
+    if (custom_color_hex.length() > 0 && custom_color_hex[0] == '#') {
+        // Parse hex color #RRGGBB
+        long rgb = strtol(custom_color_hex.c_str() + 1, NULL, 16);
+        uint8_t r = (rgb >> 16) & 0xFF;
+        uint8_t g = (rgb >> 8) & 0xFF;
+        uint8_t b = rgb & 0xFF;
+
+        // Convert RGB to HSV hue
+        CRGB color(r, g, b);
+        CHSV hsv = rgb2hsv_approximate(color);
+        custom_color_hue = hsv.hue;
+    }
+
     const TickType_t frame_ticks = pdMS_TO_TICKS(1000 / SIM_FPS);
     const float dt = 1.0f / (float)SIM_FPS;
     TickType_t last_wake = xTaskGetTickCount();
@@ -237,7 +252,7 @@ int water_sim_start(int core_id, uint32_t stack_size, int priority) {
 
 int water_sim_stop(uint32_t timeout_ms) {
     mem_subindex2=subpage_index;
-    save_config("sim_index",subpage_index);
+    save_config_ns("water_sim", "sim_index", subpage_index);
 
     if (!s_task) {
         return 0;

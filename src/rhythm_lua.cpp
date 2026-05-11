@@ -94,16 +94,13 @@ local fft_band_ranges = {
 }
 
 -- Load sensitivity from config
-local sensitivity = config.get("sensitivity")
-if sensitivity == 0 then
-  sensitivity = 12  -- default
-end
+local sensitivity = (CONFIG and CONFIG.sensitivity) or 50  -- default
 
 -- Boost multipliers for each band (from original audio_fft.cpp)
 -- Load from config, or use defaults
 local fft_band_boost = {}
 for i = 0, 16 do
-  local band_value = config.get("band_" .. i)
+  local band_value = (CONFIG and CONFIG["band_" .. i]) or 0
   if band_value > 0 then
     print(i, band_value)
     fft_band_boost[i + 1] = band_value / 10.0  -- Convert from 0-100 to 0.0-10.0
@@ -398,7 +395,7 @@ int setup_rhythm_lua_module(void) {
 
   // Load saved config
   if (g_host.saved_subpage < 0) {
-    g_host.saved_subpage = load_config(kDefaultConfigKey);
+    g_host.saved_subpage = load_config_ns("rhythm", kDefaultConfigKey);
   }
   subpage_index = g_host.saved_subpage;
 
@@ -415,6 +412,9 @@ int setup_rhythm_lua_module(void) {
 
   // Register hardware APIs (from common library)
   register_lua_hardware_apis(g_host.L);
+
+  // Inject CONFIG table from NVS
+  inject_lua_config_table(g_host.L, "rhythm");
 
   // Load and execute script
   Serial.println("[rhythm_lua] Loading Lua script...");
@@ -446,7 +446,7 @@ int setup_rhythm_lua_module(void) {
 
 int unload_rhythm_lua_module(void) {
   g_host.saved_subpage = subpage_index;
-  save_config(kDefaultConfigKey, subpage_index % 4);
+  save_config_ns("rhythm", kDefaultConfigKey, subpage_index % 4);
 
   // Call unload function
   if (g_host.L && g_host.script_loaded) {
@@ -489,62 +489,4 @@ int loop_rhythm_lua_module(void) {
   }
 
   return 0;
-}
-
-String rhythm_lua_module_runtime_status_json(void) {
-  String s = "{";
-  s += "\"script_loaded\":" + String(g_host.script_loaded ? "true" : "false");
-  s += ",\"engine\":\"lua-5.4.7\"";
-  s += ",\"style\":" + String(subpage_index);
-  s += "}";
-  return s;
-}
-
-String rhythm_lua_module_configs_json(void) {
-  String s = "[";
-
-  // Style selector
-  s += "{";
-  s += "\"key\":\"style\"";
-  s += ",\"label\":\"风格\"";
-  s += ",\"type\":\"select\"";
-  s += ",\"default\":0";
-  s += ",\"options\":\"绿峰|彩虹|分裂|流动\"";
-  s += "}";
-
-  // Overall sensitivity
-  s += ",{";
-  s += "\"key\":\"sensitivity\"";
-  s += ",\"label\":\"灵敏度\"";
-  s += ",\"type\":\"int\"";
-  s += ",\"min\":1";
-  s += ",\"max\":50";
-  s += ",\"default\":12";
-  s += "}";
-
-  // 17 frequency band gains - use shorter labels
-  const char* band_labels[] = {
-    "低音0", "低音1", "低音2", "低音3",
-    "中低4", "中低5", "中音6", "中音7",
-    "中音8", "中音9", "中高10", "中高11",
-    "高音12", "高音13", "高音14", "高音15",
-    "超高16"
-  };
-
-  // Default values: original fft_band_boost * 10
-  const int band_defaults[] = {4, 5, 5, 5, 6, 8, 11, 11, 15, 17, 30, 34, 36, 36, 38, 38, 10};
-
-  for (int i = 0; i < 17; i++) {
-    s += ",{";
-    s += "\"key\":\"band_" + String(i) + "\"";
-    s += ",\"label\":\"" + String(band_labels[i]) + "\"";
-    s += ",\"type\":\"int\"";
-    s += ",\"min\":0";
-    s += ",\"max\":100";
-    s += ",\"default\":" + String(band_defaults[i]);
-    s += "}";
-  }
-
-  s += "]";
-  return s;
 }
