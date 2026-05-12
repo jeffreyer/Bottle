@@ -26,6 +26,17 @@ GravitySnapshot g_gravity_snapshot = {0, 0, 0, false};
 // 资源使用标志
 bool g_use_gravity = false;
 bool g_use_audio = false;
+bool g_use_button = false;
+
+// 按键事件回调
+struct ButtonEvent {
+  enum Type { NONE = 0, CLICK = 1, LONG_PRESS = 2 };
+  Type type;
+  uint32_t timestamp;
+};
+
+ButtonEvent g_button_event = {ButtonEvent::NONE, 0};
+bool g_button_is_holding = false;  // 按键是否正在被按住
 
 }  // namespace
 
@@ -78,6 +89,12 @@ void lua_hardware_stop_resources() {
     Serial.println("Lua: Stopping audio FFT...");
     audio_fft_stop();
     g_use_audio = false;
+  }
+
+  if (g_use_button) {
+    Serial.println("Lua: Releasing button control...");
+    g_use_button = false;
+    g_button_event.type = ButtonEvent::NONE;
   }
 }
 
@@ -512,6 +529,30 @@ static const luaL_Reg gravity_lib[] = {
 };
 
 // ============================================================================
+// Button API
+// ============================================================================
+
+// button.poll() -> returns event_type (0=none, 1=click, 2=long_press)
+static int lua_button_poll(lua_State* L) {
+  int event_type = (int)g_button_event.type;
+  g_button_event.type = ButtonEvent::NONE;  // 清除事件
+  lua_pushnumber(L, event_type);
+  return 1;
+}
+
+// button.is_holding() -> returns true if button is currently being held
+static int lua_button_is_holding(lua_State* L) {
+  lua_pushboolean(L, g_button_is_holding);
+  return 1;
+}
+
+static const luaL_Reg button_lib[] = {
+  {"poll", lua_button_poll},
+  {"is_holding", lua_button_is_holding},
+  {NULL, NULL}
+};
+
+// ============================================================================
 // Config API
 // ============================================================================
 
@@ -589,6 +630,9 @@ static int lua_use(lua_State* L) {
   } else if (strcmp(resource, "audio") == 0) {
     g_use_audio = true;
     Serial.println("Lua: Declared use of audio FFT");
+  } else if (strcmp(resource, "button") == 0) {
+    g_use_button = true;
+    Serial.println("Lua: Declared use of button control");
   } else {
     Serial.print("Lua: Unknown resource: ");
     Serial.println(resource);
@@ -618,6 +662,10 @@ void register_lua_hardware_apis(lua_State* L) {
   luaL_newlib(L, gravity_lib);
   lua_setglobal(L, "gravity");
 
+  // Register button library
+  luaL_newlib(L, button_lib);
+  lua_setglobal(L, "button");
+
   // Register config library
   luaL_newlib(L, config_lib);
   lua_setglobal(L, "config");
@@ -646,6 +694,23 @@ void register_lua_hardware_apis(lua_State* L) {
   lua_pushnumber(L, MATRIX_HEIGHT);
   lua_setglobal(L, "HEIGHT");
 }
+
+// 检查当前模块是否声明了 button 权限
+bool lua_hardware_is_button_used() {
+  return g_use_button;
+}
+
+// 发送按键事件给 Lua 模块
+void lua_hardware_send_button_event(int event_type) {
+  g_button_event.type = (ButtonEvent::Type)event_type;
+  g_button_event.timestamp = millis();
+}
+
+// 设置按键按住状态
+void lua_hardware_set_button_holding(bool holding) {
+  g_button_is_holding = holding;
+}
+
 
 // 注入 CONFIG 全局表（从 NVS 读取配置）
 void inject_lua_config_table(lua_State* L, const char* module_id) {

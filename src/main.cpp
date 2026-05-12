@@ -9,6 +9,7 @@
 #include "ble_config.h"
 #include "app_control.h"
 #include "module_registry.h"
+#include "lua_hardware_api.h"
 #include <Preferences.h>
 
 // Button status enumeration for better code readability
@@ -141,7 +142,14 @@ static bool touch_on_active_cb(touch_sensor_handle_t sens_handle, const touch_ac
 static bool touch_on_inactive_cb(touch_sensor_handle_t sens_handle, const touch_inactive_event_data_t *event, void *user_ctx)
 {
     uint32_t now=millis();
-    if (now-tm_touch_begin>800){
+    uint32_t hold_duration = now - tm_touch_begin;
+
+    // 如果当前模块声明了 button 权限，清除按住状态
+    if (lua_hardware_is_button_used()) {
+      lua_hardware_set_button_holding(false);
+    }
+
+    if (hold_duration > 800){
       // User held for more than 800ms, use the cycle indicator to determine action
       bool in_ble_mode = ble_config_is_enabled();
 
@@ -187,6 +195,12 @@ void check_btn(){
   uint32_t now = millis();
   if (tm_touch_begin>0) {
     uint32_t held = now - tm_touch_begin;
+
+    // 如果当前模块声明了 button 权限，在按住超过300ms后设置holding状态
+    if (lua_hardware_is_button_used() && held > 300) {
+      lua_hardware_set_button_holding(true);
+    }
+
     if (held > 800 && touch_hold_hint < 1) {
       // Start cycling through icons
       touch_hold_hint = 1;
@@ -236,6 +250,11 @@ void check_btn(){
   if (btn_status == BTN_CLICK){
     btn_status = BTN_NONE;
     if (ble_config_is_enabled()) {
+      return;
+    }
+    // 检查当前模块是否声明了 button 权限
+    if (lua_hardware_is_button_used()) {
+      lua_hardware_send_button_event(1);  // 1 = click
       return;
     }
     subpage_index++;
