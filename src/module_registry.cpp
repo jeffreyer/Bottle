@@ -605,14 +605,16 @@ static String inject_config_values(const String& config_json, const char* module
             value_str = "\"" + json_escape(str_value.c_str()) + "\"";
           }
         } else if (type == "select") {
-          // Select can be either string or int, try string first
-          String str_value = prefs.getString(key.c_str(), "");
-          if (str_value.length() > 0) {
-            value_str = "\"" + json_escape(str_value.c_str()) + "\"";
+          // Select can be either string or int, try int first then string
+          int int_value = prefs.getInt(key.c_str(), -999);  // Use sentinel value
+          if (int_value != -999) {
+            // Found int value (including 0)
+            value_str = String(int_value);
           } else {
-            int int_value = prefs.getInt(key.c_str(), 0);
-            if (int_value != 0) {
-              value_str = String(int_value);
+            // Try string value
+            String str_value = prefs.getString(key.c_str(), "");
+            if (str_value.length() > 0) {
+              value_str = "\"" + json_escape(str_value.c_str()) + "\"";
             }
           }
         }

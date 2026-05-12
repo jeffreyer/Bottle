@@ -16,8 +16,6 @@ extern "C" {
 
 namespace {
 
-const char* kDefaultConfigKey = "style";
-
 struct RhythmLuaHost {
   lua_State* L = nullptr;
   int saved_subpage = -1;
@@ -30,6 +28,7 @@ RhythmLuaHost g_host;
 const char* kDefaultLuaScript = R"lua(
 -- Rhythm Spectrum Visualizer - 1:1 port from rhythm.h
 -- State variables
+use("button")
 local num_bands = WIDTH
 local num_vals = HEIGHT
 local direction = 0
@@ -260,6 +259,7 @@ end
 -- Timing variables
 local last_peak_decay = 0
 local last_color_update = 0
+local style = (CONFIG and CONFIG.style) or 0
 
 function setup()
   led.clear()
@@ -268,7 +268,13 @@ end
 
 function loop()
   local current_time = time.millis()
-  local style = sys.page_index() % 4
+  local btn_event = button.poll()
+  if btn_event == 1 then
+    style = (style + 1) % 4
+  end
+  if style < 0 or style > 3 then
+    style = 0
+  end
 
   led.clear()
 
@@ -393,12 +399,6 @@ int setup_rhythm_lua_module(void) {
   brightness_max = 10;
   FastLED.setBrightness(10);
 
-  // Load saved config
-  if (g_host.saved_subpage < 0) {
-    g_host.saved_subpage = load_config_ns("rhythm", kDefaultConfigKey);
-  }
-  subpage_index = g_host.saved_subpage;
-
   // Initialize Lua
   Serial.println("[rhythm_lua] Initializing Lua...");
   g_host.L = luaL_newstate();
@@ -445,9 +445,6 @@ int setup_rhythm_lua_module(void) {
 }
 
 int unload_rhythm_lua_module(void) {
-  g_host.saved_subpage = subpage_index;
-  save_config_ns("rhythm", kDefaultConfigKey, subpage_index % 4);
-
   // Call unload function
   if (g_host.L && g_host.script_loaded) {
     lua_getglobal(g_host.L, "unload");

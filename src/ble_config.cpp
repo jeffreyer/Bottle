@@ -752,17 +752,6 @@ static void apply_command(const String& cmd) {
             }
         }
 
-        // 重新加载当前模块以应用新配置
-        if (key == "style") {
-            int int_value;
-            if (extract_int(cmd, "value", &int_value)) {
-                app_set_subpage(int_value);
-            }
-        } else {
-            extern int32_t page_index;
-            app_set_page(page_index, 0);
-        }
-
         set_status(status_json());
         return;
     }

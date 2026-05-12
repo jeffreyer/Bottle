@@ -64,10 +64,6 @@ int32_t app_get_subpage_index(void) {
 
 void app_set_subpage(int32_t subpage) {
   subpage_index = subpage;
-  const module_descriptor_t* module = module_registry_get((uint8_t)page_index);
-  if (module && String(module->id) == "rhythm") {
-    save_config_ns("rhythm", "style", subpage_index);
-  }
 }
 
 bool app_set_module_enabled(int32_t page, bool enabled) {
