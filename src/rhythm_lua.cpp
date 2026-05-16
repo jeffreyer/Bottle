@@ -429,6 +429,8 @@ int setup_rhythm_lua_module(void) {
     lua_pop(g_host.L, 1);
   }
 
+  lua_hardware_start_resources();
+
   return 0;
 }
 
