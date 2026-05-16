@@ -12,6 +12,9 @@
 #define MATRIX_HEIGHT    8
 #define NUM_LEDS    (MATRIX_WIDTH * MATRIX_HEIGHT)
 
+// #define MPU6050
+#define LIS3DH
+
 extern cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, VERTICAL_ZIGZAG_MATRIX> leds;
 
 extern int32_t page_index,subpage_index;

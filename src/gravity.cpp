@@ -1,5 +1,7 @@
 #include "gravity.h"
+#include "common.h"
 #include "mpu6050.h"
+#include "lis3dh.h"
 #include <math.h>
 #include <Arduino.h>
 #include <Wire.h>
@@ -58,11 +60,16 @@ static void gravity_sensor_task(void* arg) {
         }
         
         mpu6050_acce_value_t acce;
+        #ifdef MPU6050
         if (mpu6050_get_acce(s_mpu, &acce)) {
+        #endif
+        #ifdef LIS3DH
+        if (lis3dh_read_accel(s_mpu, &acce)) {
+        #endif
             float ax = acce.acce_x;
             float ay = acce.acce_y;
             float az = acce.acce_z;
-            
+
             normalize_to_g(&ax, &ay, &az);
             
             float gx = 0.0f;
@@ -129,14 +136,21 @@ bool gravity_is_valid(void) {
 
 int gravity_sensor_start(void) {
     if (s_mpu) {
+        #ifdef MPU6050
         mpu6050_wake_up(s_mpu);
         return 0;  // 已经启动
+        #endif
+        #ifdef LIS3DH
+        lis_wake_up(s_mpu);
+        return 0;  // 已经启动
+        #endif
     }
     
     // 初始化I2C
     Wire.begin(I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO);
     Wire.setClock(I2C_MASTER_FREQ_HZ);
     
+    #ifdef MPU6050
     s_mpu = mpu6050_create(MPU6050_I2C_ADDRESS);
     if (!s_mpu) {
         return -1;
@@ -153,6 +167,10 @@ int gravity_sensor_start(void) {
         s_mpu = NULL;
         return -3;
     }
+    #endif
+    #ifdef LIS3DH
+    s_mpu = lis_create(LIS3DH_ADDR);
+    #endif
     
     s_sensor_running = true;
     xTaskCreatePinnedToCore(gravity_sensor_task, "gravity_task", 4096, NULL, 6, NULL, 0);
@@ -163,7 +181,12 @@ int gravity_sensor_start(void) {
 void gravity_sensor_sleep(void) {
     // 在系统进入深度睡眠前，将 MPU6050 配置为睡眠模式以降低功耗
     if (s_mpu) {
+        #ifdef MPU6050
         mpu6050_enter_sleep(s_mpu);
+        #endif
+        #ifdef LIS3DH
+        lis_enter_sleep(s_mpu);
+        #endif
     }
 }
 
