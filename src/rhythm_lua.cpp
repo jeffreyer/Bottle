@@ -28,6 +28,8 @@ RhythmLuaHost g_host;
 const char* kDefaultLuaScript = R"lua(
 -- Rhythm Spectrum Visualizer - 1:1 port from rhythm.h
 -- State variables
+use("gravity")
+use("audio")
 use("button")
 local num_bands = WIDTH
 local num_vals = HEIGHT
@@ -380,21 +382,7 @@ end
 }  // namespace
 
 int setup_rhythm_lua_module(void) {
-  // Initialize gravity sensor
-  gravity_init();
-  int err = gravity_sensor_start();
-  if (err != 0) {
-    Serial.println("[rhythm_lua] MPU start failed");
-  }
-
-  // Initialize audio FFT
-  audio_fft_init();
-  err = audio_fft_start();
-  if (err != 0) {
-    Serial.printf("[rhythm_lua] Audio FFT start failed: %d\n", err);
-    return err;
-  }
-
+  
   // Set brightness
   brightness_max = 10;
   FastLED.setBrightness(10);
@@ -459,8 +447,7 @@ int unload_rhythm_lua_module(void) {
     g_host.script_loaded = false;
   }
 
-  gravity_sensor_sleep();
-  audio_fft_stop();
+  lua_hardware_stop_resources();
   return 0;
 }
 
