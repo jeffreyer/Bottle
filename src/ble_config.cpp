@@ -31,7 +31,7 @@ static BLEAdvertising* s_ble_advertising = nullptr;
 static String s_pending_cmd;
 static bool s_has_pending_cmd = false;
 static bool s_client_connected = false;
-static bool s_ble_enabled = false;
+bool s_ble_enabled = false;
 static bool s_ble_initialized = false;
 
 // 安全管理器

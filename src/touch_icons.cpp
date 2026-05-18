@@ -128,3 +128,33 @@ void show_sleep_hold_hint(void) {
 
   FastLED.show();
 }
+
+void draw_low_battery_hint(void) {
+  for (int a=0;a<16;a++){
+    rgb_clear();
+
+    for (int y = 1; y < MATRIX_HEIGHT-1; y++) {
+      rgb_set(2, y, 60, 0, 0);
+    }
+    if (a%2==0){
+      for (int y = 1; y < MATRIX_HEIGHT-1; y++) {
+        rgb_set(3, y, 60, 0, 0);
+      }
+    }
+    for (int x = 2; x < MATRIX_WIDTH-4; x++) {
+      rgb_set(x, 1, 60, 0, 0);
+    }
+    for (int x = 2; x < MATRIX_WIDTH-4; x++) {
+      rgb_set(x, 6, 60, 0, 0);
+    }
+    for (int y = 1; y < MATRIX_HEIGHT-1; y++) {
+      rgb_set(MATRIX_WIDTH-5, y, 60, 0, 0);
+    }
+    for (int y = 2; y < MATRIX_HEIGHT-2; y++) {
+      rgb_set(MATRIX_WIDTH-4, y, 60, 0, 0);
+    }
+    FastLED.show();
+    delay(300);
+  }
+  
+}

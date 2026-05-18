@@ -7,6 +7,8 @@
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <battery.h>
+#include "ble_config.h"
 
 #define W MATRIX_HEIGHT
 #define H MATRIX_WIDTH
@@ -180,7 +182,7 @@ static void sim_task(void* arg) {
 
             // 长按显示图标时暂停渲染
             extern uint8_t touch_hold_hint;
-            if (touch_hold_hint > 0) {
+            if (touch_hold_hint > 0 || s_ble_enabled || is_low_bat) {
                 continue;
             }
 

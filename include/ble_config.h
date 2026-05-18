@@ -4,6 +4,8 @@
 extern "C" {
 #endif
 
+extern bool s_ble_enabled;
+
 void ble_config_init(void);
 void ble_config_stop(void);
 void ble_config_update(void);

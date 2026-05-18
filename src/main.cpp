@@ -2,7 +2,6 @@
 #include "rgb.h"
 #include "touch.h"
 #include "touch_icons.h"
-#include <Wire.h>
 #include "esp_sleep.h"
 #include "sim_manager.h"
 #include "sleep_manager.h"
@@ -11,6 +10,8 @@
 #include "module_registry.h"
 #include "lua_hardware_api.h"
 #include <Preferences.h>
+#include "storage_flash.h"
+#include "battery.h"
 
 // Button status enumeration for better code readability
 enum ButtonStatus {
@@ -22,6 +23,7 @@ enum ButtonStatus {
 };
 
 ButtonStatus btn_status = BTN_NONE;
+uint32_t tm_chk_bat=0;
 uint32_t tm_touch_begin;
 uint8_t touch_hold_hint = 0;
 uint8_t touch_hold_cycle = 0; //0=module, 1=ble, 2=sleep
@@ -328,6 +330,8 @@ void check_cmd(){
 void setup() {
   Serial.begin(115200);
 
+  check_low_battery();
+
   pinMode(LED_SWITCH_PIN, OUTPUT);
   digitalWrite(LED_SWITCH_PIN, LOW);
 
@@ -356,11 +360,22 @@ void setup() {
   sleep_manager_init();
 
   sleep_manager_start();
+
+  storage_init();
 }
 
 void loop() {
 
   check_btn();
+
+  if (millis() - tm_chk_bat > 30000) { // 每30秒检查一次电池状态
+    tm_chk_bat = millis();
+    check_bat();
+    if (is_low_bat) {
+      draw_low_battery_hint();
+      enter_deep_sleep();
+    }
+  }
 
   if (tm_touch_begin > 0 && touch_hold_hint > 0) {
     delay(10);
