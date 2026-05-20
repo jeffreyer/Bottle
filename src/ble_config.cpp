@@ -17,6 +17,7 @@
 extern uint32_t s_idle_timeout_ms;
 
 #define BLE_DEVICE_NAME "BottleLED"
+#define DEVICE_MODEL "Bottle-V1"  // 设备型号，用于区分应用市场可用的应用
 #define BLE_SERVICE_UUID "8c0b8a10-7e3d-4df7-9a2a-1d8d46f8b100"
 #define BLE_CONFIG_CHAR_UUID "8c0b8a11-7e3d-4df7-9a2a-1d8d46f8b100"
 #define BLE_STATUS_CHAR_UUID "8c0b8a12-7e3d-4df7-9a2a-1d8d46f8b100"
@@ -153,8 +154,11 @@ static bool extract_float(const String& json, const char* key, float* out) {
 
 static String status_json(bool include_modules = false) {
     uint32_t sleep_sec = s_idle_timeout_ms / 1000;
+    String mac = NimBLEDevice::getAddress().toString().c_str();
     String s = "{";
     s += "\"ok\":true";
+    s += ",\"model\":\"" + String(DEVICE_MODEL) + "\"";
+    s += ",\"mac\":\"" + mac + "\"";
     s += ",\"brightness\":" + String(brightness_max);
     s += ",\"sleep_sec\":" + String(sleep_sec);
     s += ",\"page\":" + String(page_index);
@@ -311,7 +315,10 @@ static void apply_command(const String& cmd) {
             // 第一次请求（start_idx == 0）包含全局信息
             if (start_idx == 0) {
                 uint32_t sleep_sec = s_idle_timeout_ms / 1000;
+                String mac = NimBLEDevice::getAddress().toString().c_str();
                 status += "\"ok\":true,";
+                status += "\"model\":\"" + String(DEVICE_MODEL) + "\",";
+                status += "\"mac\":\"" + mac + "\",";
                 status += "\"brightness\":" + String(brightness_max) + ",";
                 status += "\"sleep_sec\":" + String(sleep_sec) + ",";
                 status += "\"page\":" + String(page_index) + ",";
