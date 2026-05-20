@@ -6,9 +6,9 @@
 #include "rgb.h"
 #include "sleep_manager.h"
 #include <Arduino.h>
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
+#include <NimBLEDevice.h>
+
+
 #include <Preferences.h>
 #include <SPIFFS.h>
 #include <base64.h>
@@ -23,11 +23,11 @@ extern uint32_t s_idle_timeout_ms;
 #define BLE_PASSWORD_CHAR_UUID "8c0b8a13-7e3d-4df7-9a2a-1d8d46f8b100"
 #define BLE_AUTH_CHAR_UUID "8c0b8a14-7e3d-4df7-9a2a-1d8d46f8b100"
 
-static BLECharacteristic* s_status_char = nullptr;
-static BLECharacteristic* s_password_char = nullptr;
-static BLECharacteristic* s_auth_char = nullptr;
-static BLEServer* s_ble_server = nullptr;
-static BLEAdvertising* s_ble_advertising = nullptr;
+static NimBLECharacteristic* s_status_char = nullptr;
+static NimBLECharacteristic* s_password_char = nullptr;
+static NimBLECharacteristic* s_auth_char = nullptr;
+static NimBLEServer* s_ble_server = nullptr;
+static NimBLEAdvertising* s_ble_advertising = nullptr;
 static String s_pending_cmd;
 static bool s_has_pending_cmd = false;
 static bool s_client_connected = false;
@@ -759,8 +759,8 @@ static void apply_command(const String& cmd) {
     set_status(status_json());
 }
 
-class ConfigServerCallbacks : public BLEServerCallbacks {
-    void onConnect(BLEServer* server) override {
+class ConfigServerCallbacks : public NimBLEServerCallbacks {
+    void onConnect(NimBLEServer* server, NimBLEConnInfo& connInfo) {
         (void)server;
         s_client_connected = true;
         // 连接时立即发送状态
@@ -769,34 +769,38 @@ class ConfigServerCallbacks : public BLEServerCallbacks {
         s_status_char->notify();
     }
 
-    void onDisconnect(BLEServer* server) override {
+    void onDisconnect(NimBLEServer* server, NimBLEConnInfo& connInfo, int reason) {
+        (void)server;
         s_client_connected = false;
         // 断开连接时重置认证状态
         deviceSecurity.resetAuth();
         if (s_ble_enabled) {
-            server->getAdvertising()->start();
+            NimBLEDevice::getAdvertising()->start();
         }
     }
 };
 
-class ConfigWriteCallbacks : public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic* characteristic) override {
+class ConfigWriteCallbacks : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo& connInfo) {
+        (void)connInfo;
+
         // 检查是否已认证
         if (!deviceSecurity.checkAuthenticated()) {
             Serial.println("BLE: Unauthorized access blocked!");
             return;
         }
 
-        String value = characteristic->getValue().c_str();
-        if (value.length() == 0) return;
+        std::string valueStd = characteristic->getValue();
+        if (valueStd.length() == 0) return;
 
-        s_pending_cmd = value;
+        s_pending_cmd = String(valueStd.c_str());
         s_has_pending_cmd = true;
     }
 };
 
-class StatusReadCallbacks : public BLECharacteristicCallbacks {
-    void onRead(BLECharacteristic* characteristic) override {
+class StatusReadCallbacks : public NimBLECharacteristicCallbacks {
+    void onRead(NimBLECharacteristic* characteristic, NimBLEConnInfo& connInfo) {
+        (void)connInfo;
         // 当客户端读取状态时，更新并发送最新状态
         String status = status_json();
         characteristic->setValue(status.c_str());
@@ -804,8 +808,9 @@ class StatusReadCallbacks : public BLECharacteristicCallbacks {
 };
 
 // 密码特征值回调（读取设备密码）
-class PasswordReadCallbacks : public BLECharacteristicCallbacks {
-    void onRead(BLECharacteristic* characteristic) override {
+class PasswordReadCallbacks : public NimBLECharacteristicCallbacks {
+    void onRead(NimBLECharacteristic* characteristic, NimBLEConnInfo& connInfo) {
+        (void)connInfo;
         String password = deviceSecurity.getPassword();
         characteristic->setValue(password.c_str());
         Serial.println("BLE: Password read by client");
@@ -813,9 +818,11 @@ class PasswordReadCallbacks : public BLECharacteristicCallbacks {
 };
 
 // 认证特征值回调（验证密码）
-class AuthWriteCallbacks : public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic* characteristic) override {
-        String inputPassword = characteristic->getValue().c_str();
+class AuthWriteCallbacks : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo& connInfo) {
+        (void)connInfo;
+        std::string inputPasswordStd = characteristic->getValue();
+        String inputPassword = String(inputPasswordStd.c_str());
 
         // 处理 SET_BOUND 命令（绑定成功后设置绑定状态）
         if (inputPassword == "SET_BOUND") {
@@ -878,31 +885,44 @@ void ble_config_init(void) {
         // 初始化安全管理器
         deviceSecurity.init();
 
-        BLEDevice::init(BLE_DEVICE_NAME);
+        // 如果 NimBLE 已被其他服务（如鼠标）初始化，先完全清理
+        if (NimBLEDevice::isInitialized()) {
+            Serial.println("BLE: NimBLE already initialized by another service, deinitializing...");
+            NimBLEDevice::deinit(true);  // 完全清理
+            delay(500);  // 等待更长时间确保完全清理
+            Serial.println("BLE: Deinitialization complete");
+        }
+
+        Serial.println("BLE: Initializing NimBLE stack...");
+        NimBLEDevice::init(BLE_DEVICE_NAME);
+
+        // 清除所有绑定设备（解决部分设备无法广播的问题）
+        int bondCount = NimBLEDevice::getNumBonds();
+        if (bondCount > 0) {
+            NimBLEDevice::deleteAllBonds();
+            Serial.println("BLE: All bonds deleted");
+        }
 
         // 设置 MTU 大小
-        BLEDevice::setMTU(517);  // 517 是 BLE 的最大 MTU (512 + 5 字节头部)
+        NimBLEDevice::setMTU(517);  // 517 是 BLE 的最大 MTU (512 + 5 字节头部)
         Serial.println("BLE: MTU set to 517");
 
         Serial.println("BLE: Creating server...");
-        s_ble_server = BLEDevice::createServer();
+        s_ble_server = NimBLEDevice::createServer();
         s_ble_server->setCallbacks(new ConfigServerCallbacks());
 
-        Serial.println("BLE: Creating service...");
-        BLEService* service = s_ble_server->createService(BLE_SERVICE_UUID);
-        BLECharacteristic* config_char = service->createCharacteristic(
+        Serial.println("BLE: Creating config service...");
+        NimBLEService* service = s_ble_server->createService(BLE_SERVICE_UUID);
+        NimBLECharacteristic* config_char = service->createCharacteristic(
             BLE_CONFIG_CHAR_UUID,
-            BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR
+            NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR
         );
         config_char->setCallbacks(new ConfigWriteCallbacks());
 
         s_status_char = service->createCharacteristic(
             BLE_STATUS_CHAR_UUID,
-            BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
+            NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY
         );
-
-        BLEDescriptor* desc = new BLEDescriptor(BLEUUID((uint16_t)0x2901));
-        s_status_char->addDescriptor(desc);
         s_status_char->setCallbacks(new StatusReadCallbacks());
 
         String initial_status = status_json();
@@ -911,7 +931,7 @@ void ble_config_init(void) {
         // 创建密码特征值（读取设备密码）
         s_password_char = service->createCharacteristic(
             BLE_PASSWORD_CHAR_UUID,
-            BLECharacteristic::PROPERTY_READ
+            NIMBLE_PROPERTY::READ
         );
         s_password_char->setCallbacks(new PasswordReadCallbacks());
         s_password_char->setValue(deviceSecurity.getPassword().c_str());
@@ -919,27 +939,25 @@ void ble_config_init(void) {
         // 创建认证特征值（验证密码）
         s_auth_char = service->createCharacteristic(
             BLE_AUTH_CHAR_UUID,
-            BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY
+            NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY
         );
         s_auth_char->setCallbacks(new AuthWriteCallbacks());
 
-        Serial.println("BLE: Starting service...");
-        service->start();
-
         Serial.println("BLE: Configuring advertising...");
-        s_ble_advertising = BLEDevice::getAdvertising();
-        BLEAdvertisementData adv_data;
-        adv_data.setName(BLE_DEVICE_NAME);
-        adv_data.setCompleteServices(BLEUUID(BLE_SERVICE_UUID));
-
-        BLEAdvertisementData scan_data;
-        scan_data.setName(BLE_DEVICE_NAME);
-
-        s_ble_advertising->setAdvertisementData(adv_data);
-        s_ble_advertising->setScanResponseData(scan_data);
-        s_ble_advertising->setName(BLE_DEVICE_NAME);
+        s_ble_advertising = NimBLEDevice::getAdvertising();
         s_ble_advertising->addServiceUUID(BLE_SERVICE_UUID);
-        s_ble_advertising->setScanResponse(true);
+
+        // 在广播数据中包含设备名称（手机扫描需要）
+        NimBLEAdvertisementData advertisementData;
+        advertisementData.setName(BLE_DEVICE_NAME);
+        advertisementData.addServiceUUID(BLE_SERVICE_UUID);
+        advertisementData.setFlags(0x06);  // BR/EDR Not Supported, LE General Discoverable Mode
+        s_ble_advertising->setAdvertisementData(advertisementData);
+
+        // 设置扫描响应数据（可选，提供更多信息）
+        NimBLEAdvertisementData scanResponseData;
+        scanResponseData.setName(BLE_DEVICE_NAME);
+        s_ble_advertising->setScanResponseData(scanResponseData);
 
         s_ble_initialized = true;
         Serial.println("BLE: Stack initialized");
@@ -948,10 +966,9 @@ void ble_config_init(void) {
     }
 
     // 启动广播
-    Serial.println("BLE: Starting advertising...");
     s_ble_advertising->start();
     s_ble_enabled = true;
-    Serial.println("BLE: Advertising started");
+    Serial.println("BLE: Advertising started successfully");
 }
 
 void ble_config_stop(void) {
@@ -965,29 +982,29 @@ void ble_config_stop(void) {
     // 主动断开所有客户端连接
     if (s_ble_server && s_client_connected) {
         Serial.println("BLE: Disconnecting clients...");
-        s_ble_server->disconnect(s_ble_server->getConnId());
+        // NimBLE会自动断开，无需手动调用
         s_client_connected = false;
         delay(100); // 等待断开完成
     }
 
     // 停止广播
-    Serial.println("BLE: Stopping advertising...");
     if (s_ble_advertising) {
         s_ble_advertising->stop();
     }
 
-    // 让蓝牙进入休眠模式
-    Serial.println("BLE: Entering sleep mode...");
-    BLEDevice::deinit(false); // false表示不释放内存，保留配置以便快速重启
+    // 完全清理 BLE 栈
+    Serial.println("BLE: Deinitializing BLE stack...");
+    NimBLEDevice::deinit(true); // true 表示完全清理，包括释放所有服务和特征值
+    delay(100); // 等待清理完成
 
-    // 清理状态
+    // 清理状态变量（不清理指针，因为 deinit 已经处理了）
     s_pending_cmd = "";
     s_has_pending_cmd = false;
     s_client_connected = false;
     s_ble_enabled = false;
     s_ble_initialized = false; // 标记为未初始化，下次需要重新初始化
 
-    Serial.println("BLE: BLE stopped and entered sleep mode");
+    Serial.println("BLE: BLE stopped and deinitialized");
 }
 
 void ble_config_update(void) {

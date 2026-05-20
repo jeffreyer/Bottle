@@ -6,6 +6,7 @@
 #include "audio_fft.h"
 #include "common.h"
 #include "gravity.h"
+#include "ble_mouse.h"
 
 extern "C" {
 #include "lua.h"
@@ -396,17 +397,7 @@ static const uint8_t font3x5[][5] = {
   {0x61, 0x51, 0x49, 0x45, 0x43}, // Z
 };
 
-// led.text(x, y, text, r, g, b)
-// Draws text at position (x, y) with color (r, g, b)
-// Uses 3x5 font for all characters
-static int lua_led_text(lua_State* L) {
-  int x = (int)luaL_checknumber(L, 1);
-  int y = (int)luaL_checknumber(L, 2);
-  const char* text = luaL_checkstring(L, 3);
-  int r = (int)luaL_checknumber(L, 4);
-  int g = (int)luaL_checknumber(L, 5);
-  int b = (int)luaL_checknumber(L, 6);
-
+int draw_led_text(const char* text,int x,int y,int r,int g,int b) {
   int cursor_x = x;
 
   for (int i = 0; text[i] != '\0'; i++) {
@@ -436,6 +427,22 @@ static int lua_led_text(lua_State* L) {
       cursor_x += 4; // 3 pixels + 1 pixel spacing
     }
   }
+
+  return 0;
+
+}
+// led.text(x, y, text, r, g, b)
+// Draws text at position (x, y) with color (r, g, b)
+// Uses 3x5 font for all characters
+static int lua_led_text(lua_State* L) {
+  int x = (int)luaL_checknumber(L, 1);
+  int y = (int)luaL_checknumber(L, 2);
+  const char* text = luaL_checkstring(L, 3);
+  int r = (int)luaL_checknumber(L, 4);
+  int g = (int)luaL_checknumber(L, 5);
+  int b = (int)luaL_checknumber(L, 6);
+
+  draw_led_text(text, x, y, r, g, b);
 
   return 0;
 }
@@ -548,6 +555,7 @@ static int lua_button_is_holding(lua_State* L) {
 
 static const luaL_Reg button_lib[] = {
   {"poll", lua_button_poll},
+  {"get_event", lua_button_poll},
   {"is_holding", lua_button_is_holding},
   {NULL, NULL}
 };
@@ -633,6 +641,9 @@ static int lua_use(lua_State* L) {
   } else if (strcmp(resource, "button") == 0) {
     g_use_button = true;
     Serial.println("Lua: Declared use of button control");
+  } else if (strcmp(resource, "ble") == 0 || strcmp(resource, "bluetooth") == 0 || strcmp(resource, "mouse") == 0) {
+    Serial.println("Lua: Declared use of BLE mouse");
+    ble_mouse_init();
   } else {
     Serial.print("Lua: Unknown resource: ");
     Serial.println(resource);
@@ -640,6 +651,79 @@ static int lua_use(lua_State* L) {
 
   return 0;
 }
+
+// ============================================================================
+// BLE Mouse API
+// ============================================================================
+
+// ble.mouse_init() -> returns true/false
+static int lua_ble_mouse_init(lua_State* L) {
+  bool result = ble_mouse_init();
+  lua_pushboolean(L, result);
+  return 1;
+}
+
+// ble.mouse_deinit()
+static int lua_ble_mouse_deinit(lua_State* L) {
+  ble_mouse_deinit();
+  return 0;
+}
+
+// ble.mouse_move(dx, dy)
+static int lua_ble_mouse_move(lua_State* L) {
+  int8_t dx = (int8_t)luaL_checknumber(L, 1);
+  int8_t dy = (int8_t)luaL_checknumber(L, 2);
+  ble_mouse_move(dx, dy);
+  return 0;
+}
+
+// ble.mouse_click(buttons)
+static int lua_ble_mouse_click(lua_State* L) {
+  uint8_t buttons = (uint8_t)luaL_checknumber(L, 1);
+  ble_mouse_click(buttons);
+  return 0;
+}
+
+// ble.mouse_press(buttons)
+static int lua_ble_mouse_press(lua_State* L) {
+  uint8_t buttons = (uint8_t)luaL_checknumber(L, 1);
+  ble_mouse_press(buttons);
+  return 0;
+}
+
+// ble.mouse_release(buttons)
+static int lua_ble_mouse_release(lua_State* L) {
+  uint8_t buttons = (uint8_t)luaL_checknumber(L, 1);
+  ble_mouse_release(buttons);
+  return 0;
+}
+
+// ble.mouse_scroll(wheel)
+static int lua_ble_mouse_scroll(lua_State* L) {
+  int8_t wheel = (int8_t)luaL_checknumber(L, 1);
+  ble_mouse_scroll(wheel);
+  return 0;
+}
+
+// ble.mouse_is_connected() -> returns true/false
+static int lua_ble_mouse_is_connected(lua_State* L) {
+  bool connected = ble_mouse_is_connected();
+  lua_pushboolean(L, connected);
+  return 1;
+}
+
+static const luaL_Reg ble_lib[] = {
+  {"mouse_init", lua_ble_mouse_init},
+  {"mouse_deinit", lua_ble_mouse_deinit},
+  {"mouse_move", lua_ble_mouse_move},
+  {"mouse_click", lua_ble_mouse_click},
+  {"mouse_press", lua_ble_mouse_press},
+  {"mouse_release", lua_ble_mouse_release},
+  {"mouse_scroll", lua_ble_mouse_scroll},
+  {"mouse_is_connected", lua_ble_mouse_is_connected},
+  {"is_connected", lua_ble_mouse_is_connected},
+  {NULL, NULL}
+};
 
 // ============================================================================
 // 注册所有 API
@@ -682,6 +766,10 @@ void register_lua_hardware_apis(lua_State* L) {
 
   luaL_newlib(L, sys_lib);
   lua_setglobal(L, "sys");
+
+  // Register ble library
+  luaL_newlib(L, ble_lib);
+  lua_setglobal(L, "ble");
 
   // Register use() function
   lua_pushcfunction(L, lua_use);
