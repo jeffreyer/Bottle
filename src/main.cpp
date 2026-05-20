@@ -12,6 +12,7 @@
 #include <Preferences.h>
 #include "storage_flash.h"
 #include "battery.h"
+#include "gravity.h"
 
 // Button status enumeration for better code readability
 enum ButtonStatus {
@@ -323,6 +324,29 @@ void check_cmd(){
       s_idle_timeout_ms=sec*1000;
       Serial.printf("set sleep delay seconds:%d",sec);
     }
+    else if (command.startsWith("cal=")) {
+      // 格式: cal=0.01,-0.02,0.03
+      String values = command.substring(4);
+      int comma1 = values.indexOf(',');
+      int comma2 = values.indexOf(',', comma1 + 1);
+
+      if (comma1 > 0 && comma2 > comma1) {
+        float offset_x = values.substring(0, comma1).toFloat();
+        float offset_y = values.substring(comma1 + 1, comma2).toFloat();
+        float offset_z = values.substring(comma2 + 1).toFloat();
+
+        gravity_set_calibration(offset_x, offset_y, offset_z);
+        Serial.printf("Calibration set: x=%.4f, y=%.4f, z=%.4f\n", offset_x, offset_y, offset_z);
+      } else {
+        Serial.println("Invalid format. Use: cal=x,y,z (e.g., cal=0.01,-0.02,0.03)");
+      }
+    }
+    else if (command.startsWith("cal?")) {
+      // 查询当前校准值
+      float offset_x, offset_y, offset_z;
+      gravity_get_calibration(&offset_x, &offset_y, &offset_z);
+      Serial.printf("Current calibration: x=%.4f, y=%.4f, z=%.4f\n", offset_x, offset_y, offset_z);
+    }
   }
 
 }
@@ -337,14 +361,16 @@ void setup() {
 
   main_load_config();
 
-  module_registry_init();
-
-  page_index = module_registry_normalize_index(page_index);
-  Serial.printf("[Setup] Page index: %d\n", page_index);
+  gravity_init();
 
   rgb_init();
 
   touch_sleep_init(touch_on_active_cb,touch_on_inactive_cb);
+
+  module_registry_init();
+
+  page_index = module_registry_normalize_index(page_index);
+  Serial.printf("[Setup] Page index: %d\n", page_index);
 
   const module_descriptor_t* module = module_registry_get((uint8_t)page_index);
   if (module && module->setup) {

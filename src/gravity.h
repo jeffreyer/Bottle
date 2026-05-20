@@ -15,6 +15,12 @@ void gravity_set(float gx, float gy, float gz);
 gravity_xy_t gravity_get(void);
 bool gravity_is_valid(void);
 
+// 设置校准偏移量
+void gravity_set_calibration(float offset_x, float offset_y, float offset_z);
+
+// 获取当前校准偏移量
+void gravity_get_calibration(float* offset_x, float* offset_y, float* offset_z);
+
 // Start gravity sensor producer task (current backend: MPU6050).
 int gravity_sensor_start(void);  // 返回0表示成功，非0表示失败
 

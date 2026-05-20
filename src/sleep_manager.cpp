@@ -131,10 +131,11 @@ void sleep_manager_update() {
   float gx = g.valid ? g.gx : 0.0f;
   float gy = g.valid ? g.gy : 0.0f;
   float gz = g.valid ? g.gz : 0.0f;
-  if (millis()-last_p>300){
-    last_p=millis();
-    // Serial.printf("mpu: %f %f | %f %f | %f %f\n", gx,last_gx,gy,last_gy,gz,last_gz);
-  }
+  // if (millis()-last_p>300){
+  //   last_p=millis();
+  //   Serial.printf("mpu: %f %f %f\n", gx,gy,gz);
+  //   // Serial.printf("mpu: %f %f | %f %f | %f %f\n", gx,last_gx,gy,last_gy,gz,last_gz);
+  // }
   if (abs(gx-last_gx)>0.02||abs(gy-last_gy)>0.02){
     last_active=now;
   }

@@ -5,6 +5,7 @@
 #include <math.h>
 #include <Arduino.h>
 #include <Wire.h>
+#include <Preferences.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -26,6 +27,11 @@ static float s_gx = 0.0f;
 static float s_gy = 0.0f;
 static float s_gz = 0.0f;
 static bool s_valid = false;
+
+// 校准偏移量
+static float s_cal_offset_x = 0.0f;
+static float s_cal_offset_y = 0.0f;
+static float s_cal_offset_z = 0.0f;
 
 static mpu6050_handle_t s_mpu = NULL;
 static bool s_sensor_running = false;
@@ -112,12 +118,25 @@ void gravity_init(void) {
     s_gy = 0.0f;
     s_gz = 0.0f;
     s_valid = false;
+
+    // 从 NVS 加载校准值
+    Preferences prefs;
+    prefs.begin("gravity", true);
+    s_cal_offset_x = prefs.getFloat("cal_x", 0.0f);
+    s_cal_offset_y = prefs.getFloat("cal_y", 0.0f);
+    s_cal_offset_z = prefs.getFloat("cal_z", 0.0f);
+    prefs.end();
+
+    if (s_cal_offset_x != 0.0f || s_cal_offset_y != 0.0f || s_cal_offset_z != 0.0f) {
+        Serial.printf("Gravity calibration loaded: x=%.4f, y=%.4f, z=%.4f\n",
+                      s_cal_offset_x, s_cal_offset_y, s_cal_offset_z);
+    }
 }
 
 void gravity_set(float gx, float gy, float gz) {
-    s_gx = gx;
-    s_gy = gy;
-    s_gz = gz;
+    s_gx = gx - s_cal_offset_x;
+    s_gy = gy - s_cal_offset_y;
+    s_gz = gz - s_cal_offset_z;
     s_valid = true;
 }
 
@@ -188,5 +207,27 @@ void gravity_sensor_sleep(void) {
         lis_enter_sleep(s_mpu);
         #endif
     }
+}
+
+void gravity_set_calibration(float offset_x, float offset_y, float offset_z) {
+    s_cal_offset_x = offset_x;
+    s_cal_offset_y = offset_y;
+    s_cal_offset_z = offset_z;
+
+    // 保存到 NVS
+    Preferences prefs;
+    prefs.begin("gravity", false);
+    prefs.putFloat("cal_x", offset_x);
+    prefs.putFloat("cal_y", offset_y);
+    prefs.putFloat("cal_z", offset_z);
+    prefs.end();
+
+    Serial.printf("Gravity calibration saved: x=%.4f, y=%.4f, z=%.4f\n", offset_x, offset_y, offset_z);
+}
+
+void gravity_get_calibration(float* offset_x, float* offset_y, float* offset_z) {
+    if (offset_x) *offset_x = s_cal_offset_x;
+    if (offset_y) *offset_y = s_cal_offset_y;
+    if (offset_z) *offset_z = s_cal_offset_z;
 }
 
