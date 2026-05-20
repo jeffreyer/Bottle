@@ -362,6 +362,8 @@ void setup() {
   main_load_config();
 
   gravity_init();
+  if (s_idle_timeout_ms>0)
+    gravity_sensor_start();
 
   rgb_init();
 

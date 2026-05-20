@@ -7,6 +7,7 @@
 #include "common.h"
 #include "gravity.h"
 #include "ble_mouse.h"
+#include "sleep_manager.h"
 
 extern "C" {
 #include "lua.h"
@@ -82,7 +83,8 @@ void lua_hardware_start_resources() {
 void lua_hardware_stop_resources() {
   if (g_use_gravity) {
     Serial.println("Lua: Stopping gravity sensor...");
-    gravity_sensor_sleep();
+    if (s_idle_timeout_ms==0)
+      gravity_sensor_sleep();
     g_use_gravity = false;
   }
 

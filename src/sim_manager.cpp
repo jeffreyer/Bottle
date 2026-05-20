@@ -2,6 +2,7 @@
 #include "sim_manager.h"
 #include "water_sim.h"
 #include "gravity.h"
+#include "sleep_manager.h"
 
 static sim_runtime_config_t s_cfg = {
     .core_id = 1,
@@ -102,7 +103,8 @@ int setup_fluid(){
 }
 
 int unload_fluid(){
-    gravity_sensor_sleep();
+    if (s_idle_timeout_ms==0)
+        gravity_sensor_sleep();
     sim_manager_stop();
 
     return 0;

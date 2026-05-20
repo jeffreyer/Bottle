@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "common.h"
 #include "gravity.h"
+#include "sleep_manager.h"
 
 // 柏林噪声的种子序列， 257个元素，最后一个防溢出
 static  uint8_t perm[] PROGMEM = {
@@ -313,6 +314,7 @@ int setup_candle(){
 int unload_candle(){
     mem_subindex3=subpage_index;
     save_config_ns("candle", "candle_index", subpage_index);
-    gravity_sensor_sleep();
+    if (s_idle_timeout_ms==0)
+        gravity_sensor_sleep();
     return 0;
 }

@@ -5,6 +5,7 @@
 #include <string.h>
 #include "common.h"
 #include "gravity.h"
+#include "sleep_manager.h"
 
 #define W 8
 #define H 17
@@ -245,6 +246,7 @@ int setup_sand() {
 }
 
 int unload_sand() {
-    gravity_sensor_sleep();
+    if (s_idle_timeout_ms==0)
+        gravity_sensor_sleep();
     return 0;
 }

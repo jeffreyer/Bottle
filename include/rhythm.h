@@ -476,7 +476,8 @@ int unload_rhythm(){
   mem_subindex=subpage_index;
   save_config("rhythm_index",subpage_index);
 
-  gravity_sensor_sleep();
+  if (s_idle_timeout_ms==0)
+    gravity_sensor_sleep();
 
   // if (fft_task!=NULL){
   //   vTaskDelete(fft_task);
