@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <Wire.h>
 
-#define LIS3DH_ADDR 0x09
+#define LIS3DH_ADDR 0x19
 
 int sensor=1;
 
@@ -30,7 +30,8 @@ uint8_t read_reg(uint8_t reg)
 }
 
 mpu6050_handle_t lis_create(uint8_t dev_addr) {
-    write_reg(0x20, 0x37);
+    // write_reg(0x20, 0x37);
+    write_reg(0x20, 0x57);
     write_reg(0x23, 0x80);
     
     return (mpu6050_handle_t)sensor;
@@ -41,7 +42,8 @@ bool lis_wake_up(mpu6050_handle_t sensor) {
         return false;
     }
     
-    write_reg(0x20, 0x37);
+    // write_reg(0x20, 0x37);
+    write_reg(0x20, 0x57);
     write_reg(0x23, 0x80);
     return true;
 }
