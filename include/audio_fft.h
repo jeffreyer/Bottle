@@ -4,6 +4,7 @@
 // 通用音频FFT模块 - 硬件抽象层
 // 提供原始FFT幅度数据，供Lua脚本自定义处理
 
+extern bool is_i2s_mic;
 // 初始化音频FFT模块（不启动采集）
 int audio_fft_init();
 

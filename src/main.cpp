@@ -13,6 +13,7 @@
 #include "storage_flash.h"
 #include "battery.h"
 #include "gravity.h"
+#include "audio_fft.h"
 
 // Button status enumeration for better code readability
 enum ButtonStatus {
@@ -37,6 +38,7 @@ void main_load_config(){
   user_brightness_max = prefs.getInt("brightness", user_brightness_max);
   brightness_max = user_brightness_max;
   s_idle_timeout_ms = prefs.getInt("sleep_sec",IDLE_TIMEOUT_DEFAULT)*1000;
+  is_i2s_mic = prefs.getInt("i2s_mic",0);
   prefs.end();
 }
 
@@ -346,6 +348,13 @@ void check_cmd(){
       float offset_x, offset_y, offset_z;
       gravity_get_calibration(&offset_x, &offset_y, &offset_z);
       Serial.printf("Current calibration: x=%.4f, y=%.4f, z=%.4f\n", offset_x, offset_y, offset_z);
+    }
+    else if (command.startsWith("mic=")) {
+      String value = command.substring(4);
+      bool enabled = value.toInt() != 0;
+      save_config("i2s_mic", enabled);
+      is_i2s_mic = enabled;
+      Serial.printf("I2S Mic %s\n", enabled ? "enabled" : "disabled");
     }
   }
 
