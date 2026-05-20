@@ -13,6 +13,8 @@
 #define DMA_BUF_LEN 512
 #define SAMPLE_FREQ 16000
 
+bool is_i2s_mic=false;
+
 namespace {
 
 struct AudioFFTContext {
@@ -81,54 +83,53 @@ int audio_fft_start() {
     return -2;
   }
 
-  #ifdef MIC_PDM
-  i2s_pdm_rx_config_t pdm_cfg = {
-    .clk_cfg = I2S_PDM_RX_CLK_DEFAULT_CONFIG(SAMPLE_FREQ),
-    .slot_cfg = {
-      .data_bit_width = I2S_DATA_BIT_WIDTH_16BIT,
-      .slot_mode = I2S_SLOT_MODE_MONO,
-      .slot_mask = I2S_PDM_SLOT_LEFT,
-    },
-    .gpio_cfg = {
-      .clk = (gpio_num_t)I2S_BCK_PIN,
-      .din = (gpio_num_t)I2S_WS_PIN,
-    },
-  };
-
-  if (i2s_channel_init_pdm_rx_mode(g_ctx.rx_handle, &pdm_cfg) != ESP_OK) {
-    Serial.println("[audio_fft] Failed to init PDM RX mode");
-    return -3;
-  }
-  #endif
-
-  #ifdef MIC_I2S
-  // 配置 I2S 标准模式参数
-  i2s_std_config_t std_cfg = {
-      .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_FREQ),    // 时钟配置
-      .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO), // 时隙配置 (16位，单声道)
-      .gpio_cfg = {
-          .mclk = I2S_GPIO_UNUSED,       // 不使用主时钟
-          .bclk = (gpio_num_t)I2S_BCK_PIN,
-          .ws   = (gpio_num_t)I2S_WS_PIN,
-          .dout = I2S_GPIO_UNUSED,       // 不使用数据输出
-          .din  = (gpio_num_t)I2S_SD_PIN,
-          .invert_flags = {
-              .mclk_inv = false,
-              .bclk_inv = false,
-              .ws_inv   = false,
-          },
+  if (!is_i2s_mic) {
+    i2s_pdm_rx_config_t pdm_cfg = {
+      .clk_cfg = I2S_PDM_RX_CLK_DEFAULT_CONFIG(SAMPLE_FREQ),
+      .slot_cfg = {
+        .data_bit_width = I2S_DATA_BIT_WIDTH_16BIT,
+        .slot_mode = I2S_SLOT_MODE_MONO,
+        .slot_mask = I2S_PDM_SLOT_LEFT,
       },
-  };
+      .gpio_cfg = {
+        .clk = (gpio_num_t)I2S_BCK_PIN,
+        .din = (gpio_num_t)I2S_WS_PIN,
+      },
+    };
 
-  std_cfg.slot_cfg.slot_mask = I2S_STD_SLOT_LEFT;
-  std_cfg.clk_cfg.clk_src = I2S_CLK_SRC_DEFAULT;
-
-  // 初始化 I2S 通道
-  if (i2s_channel_init_std_mode(g_ctx.rx_handle, &std_cfg) != ESP_OK) {
-      Serial.println("Error: Failed to initialize I2S channel");
+    if (i2s_channel_init_pdm_rx_mode(g_ctx.rx_handle, &pdm_cfg) != ESP_OK) {
+      Serial.println("[audio_fft] Failed to init PDM RX mode");
       return -3;
+    }
+
+  } else {
+    // 配置 I2S 标准模式参数
+    i2s_std_config_t std_cfg = {
+        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_FREQ),    // 时钟配置
+        .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO), // 时隙配置 (16位，单声道)
+        .gpio_cfg = {
+            .mclk = I2S_GPIO_UNUSED,       // 不使用主时钟
+            .bclk = (gpio_num_t)I2S_BCK_PIN,
+            .ws   = (gpio_num_t)I2S_WS_PIN,
+            .dout = I2S_GPIO_UNUSED,       // 不使用数据输出
+            .din  = (gpio_num_t)I2S_SD_PIN,
+            .invert_flags = {
+                .mclk_inv = false,
+                .bclk_inv = false,
+                .ws_inv   = false,
+            },
+        },
+    };
+
+    std_cfg.slot_cfg.slot_mask = I2S_STD_SLOT_LEFT;
+    std_cfg.clk_cfg.clk_src = I2S_CLK_SRC_DEFAULT;
+
+    // 初始化 I2S 通道
+    if (i2s_channel_init_std_mode(g_ctx.rx_handle, &std_cfg) != ESP_OK) {
+        Serial.println("Error: Failed to initialize I2S channel");
+        return -3;
+    }
   }
-  #endif
 
   if (i2s_channel_enable(g_ctx.rx_handle) != ESP_OK) {
     Serial.println("[audio_fft] Failed to enable I2S channel");
