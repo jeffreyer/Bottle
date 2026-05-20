@@ -15,6 +15,9 @@
 // #define MPU6050
 #define LIS3DH
 
+// #define MIC_I2S
+#define MIC_PDM
+
 extern cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, VERTICAL_ZIGZAG_MATRIX> leds;
 
 extern int32_t page_index,subpage_index;

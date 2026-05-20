@@ -3,8 +3,11 @@
 #include <Arduino.h>
 #include <arduinoFFT.h>
 #include "driver/i2s_pdm.h"
+#include "driver/i2s_std.h"
+#include "common.h"
 
 #define I2S_WS_PIN 10
+#define I2S_SD_PIN    6 //I2S MIC only
 #define I2S_BCK_PIN 7
 #define DMA_BUF_COUNT 6
 #define DMA_BUF_LEN 512
@@ -78,6 +81,7 @@ int audio_fft_start() {
     return -2;
   }
 
+  #ifdef MIC_PDM
   i2s_pdm_rx_config_t pdm_cfg = {
     .clk_cfg = I2S_PDM_RX_CLK_DEFAULT_CONFIG(SAMPLE_FREQ),
     .slot_cfg = {
@@ -95,6 +99,36 @@ int audio_fft_start() {
     Serial.println("[audio_fft] Failed to init PDM RX mode");
     return -3;
   }
+  #endif
+
+  #ifdef MIC_I2S
+  // 配置 I2S 标准模式参数
+  i2s_std_config_t std_cfg = {
+      .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_FREQ),    // 时钟配置
+      .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO), // 时隙配置 (16位，单声道)
+      .gpio_cfg = {
+          .mclk = I2S_GPIO_UNUSED,       // 不使用主时钟
+          .bclk = (gpio_num_t)I2S_BCK_PIN,
+          .ws   = (gpio_num_t)I2S_WS_PIN,
+          .dout = I2S_GPIO_UNUSED,       // 不使用数据输出
+          .din  = (gpio_num_t)I2S_SD_PIN,
+          .invert_flags = {
+              .mclk_inv = false,
+              .bclk_inv = false,
+              .ws_inv   = false,
+          },
+      },
+  };
+
+  std_cfg.slot_cfg.slot_mask = I2S_STD_SLOT_LEFT;
+  std_cfg.clk_cfg.clk_src = I2S_CLK_SRC_DEFAULT;
+
+  // 初始化 I2S 通道
+  if (i2s_channel_init_std_mode(g_ctx.rx_handle, &std_cfg) != ESP_OK) {
+      Serial.println("Error: Failed to initialize I2S channel");
+      return -3;
+  }
+  #endif
 
   if (i2s_channel_enable(g_ctx.rx_handle) != ESP_OK) {
     Serial.println("[audio_fft] Failed to enable I2S channel");
