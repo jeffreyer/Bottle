@@ -106,3 +106,20 @@ static bool storage_mount_fatfs(const char* partition_label)
     }
     return true;
 }
+
+wl_handle_t storage_get_wl_handle()
+{
+    return s_wl_handle;
+}
+
+bool storage_remount_fatfs()
+{
+    // 如果已经挂载，先卸载
+    if (s_wl_handle != WL_INVALID_HANDLE) {
+        esp_vfs_fat_spiflash_unmount_rw_wl(base_path, s_wl_handle);
+        s_wl_handle = WL_INVALID_HANDLE;
+    }
+
+    // 重新挂载FAT文件系统（分区已经存在，不需要重新注册）
+    return storage_mount_fatfs("storage");
+}

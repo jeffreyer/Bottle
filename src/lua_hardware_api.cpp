@@ -4,6 +4,7 @@
 #include <FastLED.h>
 #include "app_control.h"
 #include "audio_fft.h"
+#include "audio_record.h"
 #include "common.h"
 #include "gravity.h"
 #include "ble_mouse.h"
@@ -728,6 +729,44 @@ static const luaL_Reg ble_lib[] = {
 };
 
 // ============================================================================
+// Audio Record API
+// ============================================================================
+
+// record.start(file_path) -> returns success (boolean)
+static int lua_record_start(lua_State* L) {
+  const char* file_path = luaL_checkstring(L, 1);
+  int result = audio_record_start(file_path);
+  lua_pushboolean(L, result == 0);
+  return 1;
+}
+
+// record.stop()
+static int lua_record_stop(lua_State* L) {
+  audio_record_stop();
+  return 0;
+}
+
+// record.is_recording() -> returns boolean
+static int lua_record_is_recording(lua_State* L) {
+  lua_pushboolean(L, audio_record_is_recording());
+  return 1;
+}
+
+// record.get_bytes() -> returns bytes written
+static int lua_record_get_bytes(lua_State* L) {
+  lua_pushnumber(L, audio_record_get_bytes_written());
+  return 1;
+}
+
+static const luaL_Reg record_lib[] = {
+  {"start", lua_record_start},
+  {"stop", lua_record_stop},
+  {"is_recording", lua_record_is_recording},
+  {"get_bytes", lua_record_get_bytes},
+  {NULL, NULL}
+};
+
+// ============================================================================
 // 注册所有 API
 // ============================================================================
 
@@ -772,6 +811,10 @@ void register_lua_hardware_apis(lua_State* L) {
   // Register ble library
   luaL_newlib(L, ble_lib);
   lua_setglobal(L, "ble");
+
+  // Register record library
+  luaL_newlib(L, record_lib);
+  lua_setglobal(L, "record");
 
   // Register use() function
   lua_pushcfunction(L, lua_use);

@@ -14,6 +14,10 @@
 #include "battery.h"
 #include "gravity.h"
 #include "audio_fft.h"
+#include "usb_msc.h"
+#include <USB.h>
+#include <sys/stat.h>
+#include <dirent.h>
 
 // Button status enumeration for better code readability
 enum ButtonStatus {
@@ -319,6 +323,7 @@ void check_btn(){
 void check_cmd(){
   if (Serial.available() > 0) {
     String command = Serial.readString();
+    command.trim();
 
     if (command.startsWith("sleep=")) {
       int sec=command.substring(6).toInt();
@@ -356,12 +361,76 @@ void check_cmd(){
       is_i2s_mic = enabled;
       Serial.printf("I2S Mic %s\n", enabled ? "enabled" : "disabled");
     }
+    else if (command.startsWith("usb=")) {
+      String value = command.substring(4);
+      if (value == "1" || value == "on") {
+        save_config("usb_msc", 1);
+        Serial.println("USB MSC will be enabled on next reboot");
+        Serial.println("Please restart the device");
+      } else if (value == "0" || value == "off") {
+        save_config("usb_msc", 0);
+        Serial.println("USB MSC will be disabled on next reboot");
+        Serial.println("Please restart the device");
+      } else {
+        Serial.println("Usage: usb=1 (enable) or usb=0 (disable)");
+      }
+    }
+    else if (command.startsWith("usb?")) {
+      Preferences prefs;
+      prefs.begin("bottle", true);
+      bool enabled = prefs.getInt("usb_msc", 0) != 0;
+      prefs.end();
+      Serial.printf("USB MSC: %s (requires reboot to apply)\n", enabled ? "enabled" : "disabled");
+    }
+    else if (command.startsWith("ls")) {
+      Serial.println("Files in /extflash:");
+      DIR* dir = opendir("/extflash");
+      if (!dir) {
+        Serial.println("ERROR: Cannot open /extflash");
+      } else {
+        struct dirent* entry;
+        int count = 0;
+        while ((entry = readdir(dir)) != NULL) {
+          char fullpath[256];
+          snprintf(fullpath, sizeof(fullpath), "/extflash/%s", entry->d_name);
+          struct stat st;
+          if (stat(fullpath, &st) == 0) {
+            if (S_ISDIR(st.st_mode)) {
+              Serial.printf("  [DIR]  %s\n", entry->d_name);
+            } else {
+              Serial.printf("  [FILE] %s (%u bytes)\n", entry->d_name, (unsigned int)st.st_size);
+            }
+            count++;
+          }
+        }
+        closedir(dir);
+        if (count == 0) {
+          Serial.println("  (empty)");
+        }
+        Serial.printf("Total: %d items\n", count);
+      }
+    }
   }
 
 }
 
 void setup() {
   Serial.begin(115200);
+
+  storage_init();
+
+  // 读取 USB MSC 配置
+  Preferences prefs;
+  prefs.begin("bottle", true);
+  bool enable_usb_msc = prefs.getInt("usb_msc", 0) != 0;
+  prefs.end();
+
+  if (enable_usb_msc) {
+    Serial.println("[Setup] Enabling USB MSC mode...");
+    Serial.flush();
+    delay(100);
+    usb_msc_init();
+  }
 
   check_low_battery();
 
@@ -397,8 +466,6 @@ void setup() {
   sleep_manager_init();
 
   sleep_manager_start();
-
-  storage_init();
 }
 
 void loop() {
