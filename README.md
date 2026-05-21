@@ -1,265 +1,242 @@
-# Bottle - LED Matrix Animation VM
+# Bottle - 可编程 LED 矩阵设备
 
-Bottle is a bytecode virtual machine designed for creating dynamic LED matrix animations on ESP32 microcontrollers. It provides a simple scripting language that compiles to efficient bytecode, enabling real-time audio-reactive and sensor-driven visual effects.
+Bottle 是一个基于 ESP32-S3 的可编程 LED 矩阵设备，支持通过 Lua 脚本创建动态动画效果。它集成了重力感应、音频采集、蓝牙配置等功能，适合创建互动式视觉艺术作品。
 
-## Features
+## 主要特性
 
-- **Compact Bytecode VM**: Stack-based interpreter optimized for embedded systems
-- **Type System**: Automatic conversions between int, float, bool, and color types
-- **Built-in Functions**: Math, color manipulation, LED control, sensor access
-- **Safety**: Stack overflow protection, array bounds checking, instruction limits
-- **Audio Reactive**: FFT spectrum analysis integration
-- **Sensor Integration**: Accelerometer, gyroscope, orientation detection
-- **Modular Design**: Hot-swappable animation modules with setup/loop/unload lifecycle
+### 硬件能力
+- **LED 矩阵**: 17×8 全彩 LED 阵列，支持动态动画
+- **重力感应**: LIS3DH 三轴加速度计，支持姿态检测和重力交互
+- **音频采集**: 支持 I2S/PDM 麦克风，实时 FFT 频谱分析（17 频段）
+- **音频录制**: 支持录制原始 PCM 音频到 U盘
+- **触摸控制**: 电容触摸按键，支持短按、长按、超长按
+- **蓝牙功能**: 
+  - BLE 配置服务（通过手机 App 配置设备）
+  - BLE HID 鼠标模式（将设备用作蓝牙鼠标）
+- **USB 功能**: USB MSC 大容量存储（U盘模式，访问内部 Flash）
+- **电源管理**: 电池电量监测、自动休眠、低功耗模式
 
-## Hardware
+### 软件特性
+- **Lua 脚本引擎**: 基于 Lua 5.4.7，支持热加载动画模块
+- **模块化架构**: 内置多种动画效果（文字滚动、频谱显示、重力粒子、沙漏、蜡烛等）
+- **云端配置**: 支持通过蓝牙从云端下载和配置模块
+- **安全机制**: 栈溢出保护、数组边界检查、指令限制
+- **持久化存储**: NVS 配置存储、Flash 文件系统
 
-- **Target**: ESP32-S3-DevKitC-1 (ESP32-S3-WROOM-1-N4R2)
-- **Memory**: 4MB Flash, 2MB PSRAM
-- **LED Driver**: FastLED library
-- **Audio**: I2S microphone with arduinoFFT
+## 硬件设计
 
-## Quick Start
+本项目包含完整的硬件设计文件（Altium Designer 格式）：
 
-### Prerequisites
+- **PCB 设计**: [PCB-Design](PCB-Design/) 目录
+  - 主板原理图: [main.schdoc](PCB-Design/main.schdoc)
+  - LED 阵列原理图: [led_array.schdoc](PCB-Design/led_array.schdoc)
+  - PCB 布局: [bottle.PcbDoc](PCB-Design/bottle.PcbDoc)
+  - Gerber 文件: [Gerber.rar](PCB-Design/Gerber.rar)
 
-- PlatformIO IDE or CLI
-- ESP32-S3 development board
-- LED matrix (WS2812B or compatible)
+**核心器件**:
+- MCU: ESP32-S3 (N4R2 配置 - 4MB Flash, 2MB PSRAM)
+- 加速度计: LIS3DH
+- LED 驱动: WS2812B 兼容
+- 麦克风: I2S/PDM 数字麦克风（可通过命令行切换）
 
-### Build and Upload
+## 快速开始
+
+### 环境准备
+
+1. **安装开发工具**
+   - [Visual Studio Code](https://code.visualstudio.com/)
+   - [PlatformIO IDE](https://platformio.org/install/ide?install=vscode) 扩展
+
+2. **克隆仓库**
+   ```bash
+   git clone <repo-url>
+   cd Bottle
+   ```
+
+### 编译和上传
 
 ```bash
-# Clone repository
-git clone <repo-url>
-cd Bottle
+# 编译固件
+pio run
 
-# Build and upload to ESP32
+# 上传到 ESP32-S3
 pio run -t upload
 
-# Monitor serial output
+# 打开串口监视器
 pio device monitor
 ```
 
-### Write Your First Module
+### 基本操作
 
-Create `modules_dev/my_animation/main.bottle`:
+**触摸按键控制**:
+- **短按**: 切换子页面/模式
+- **长按 (1-2秒)**: 切换动画模块
+- **长按 (2-3秒)**: 开启/关闭蓝牙配置模式
+- **超长按 (>3秒)**: 进入休眠模式
 
-```bottle
-array colors[16] = 0
-scalar hue = 0
+## Lua 脚本开发
 
-setup() {
-    clear_leds()
-}
+Bottle 支持通过 Lua 脚本创建自定义动画效果。详细的 API 文档和示例请参考：
 
-loop(50) {
-    for (x = 0; x < 16; x = x + 1) {
-        colors[x] = hsv(hue + x * 10, 255, 255)
-        set_led(x, colors[x])
-    }
-    show_leds()
-    hue = (hue + 1) % 360
-}
+📖 **[Lua 脚本开发指南](docs/LUA_SCRIPT_GUIDE.md)**
+
+### 快速示例
+
+```lua
+-- @name: 彩虹波浪
+-- @version: 1.0.0
+-- @author: Your Name
+-- @description: Rainbow wave animation
+-- @id: rainbow
+
+function setup()
+  led.clear()
+  led.show()
+end
+
+function loop()
+  local t = time.millis() / 50
+  
+  for x = 0, 16 do
+    for y = 0, 7 do
+      local hue = (x * 15 + y * 10 + t) % 255
+      local r, g, b = led.hsv(hue, 255, 255)
+      led.set(x, y, r, g, b)
+    end
+  end
+  
+  led.show()
+  time.delay(30)
+end
+
+function unload()
+  led.clear()
+  led.show()
+end
 ```
 
-Load via serial commands:
-```
-load my_animation
-```
+### 可用的硬件 API
 
-## Architecture
+- **LED 控制**: `led.set()`, `led.clear()`, `led.show()`, `led.text()`, `led.hsv()`
+- **时间**: `time.millis()`, `time.delay()`
+- **重力感应**: `gravity.get()` - 返回 X/Y/Z 轴加速度
+- **音频频谱**: `audio.init()`, `audio.getSpectrum()`, `audio.close()`
 
-See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
+## 内置动画模块
 
-### Components
+- **文字显示** (`text`) - 支持滚动文字、自定义颜色
+- **频谱显示** (`rhythm`) - 音频频谱可视化
+- **重力粒子** - 重力感应控制的粒子效果
+- **沙漏** (`sandglass`) - 重力感应沙漏模拟
+- **蜡烛** (`candle`) - 蜡烛火焰动画
+- **水波模拟** (`water_sim`) - 流体动力学模拟
+- **RGB 彩虹** (`rgb`) - 彩虹渐变动画
+- 以上部分模块需通过小程序**幻彩抽屉**下载
 
-- **Compiler** (`bottle_compiler.cpp`): Single-pass compiler, constant folding, loop unrolling
-- **VM** (`bottle_vm.cpp`): Stack-based interpreter with 42 opcodes
-- **Type System** (`bottle_types.cpp`): Tagged union values with automatic coercion
-- **Runtime** (`module_runtime.cpp`): Module lifecycle management
-- **Registry** (`module_registry.cpp`): Module storage and discovery
+## 蓝牙配置
 
-### Memory Limits
+设备支持通过 BLE 进行配置：
 
-- Stack depth: 128 values
-- Bytecode size: 2048 bytes
-- Constants: 128 max
-- Arrays: 6 × 16 elements (uint8_t)
-- Scalars: 12 (float)
-- Configs: 4 (int32_t)
-- Instructions per frame: 20,000 max
+1. 长按触摸键 2-3 秒进入 BLE 配置模式
+2. 使用微信小程序**幻彩抽屉**连接设备（设备名: "BottleLED"）
+3. 通过 小程序 配置模块参数、下载新模块、调整系统设置
+4. 再次长按退出配置模式
 
-## Language Reference
+**BLE 服务 UUID**: 自定义配置服务（参见 [ble_config.cpp](src/ble_config.cpp)）
 
-### Variable Declarations
+## 音频功能
 
-```bottle
-array peaks[16] = 0          // uint8_t array
-scalar brightness = 1.0      // float scalar
-config speed = 100           // int32_t config (persistent)
-```
+### 实时频谱分析
+- 17 频段 FFT 分析（0-8kHz）
+- 支持 I2S 和 PDM 麦克风
+- 可用于音乐可视化、声控动画
 
-### Lifecycle Functions
+### 音频录制
+- 录制格式: 16-bit PCM, 16kHz 采样率
+- 存储位置: `/extflash/rec_*.pcm`
+- 通过 USB U盘模式导出录音文件
 
-```bottle
-setup() {
-    // Run once on module load
-}
+## 电源管理
 
-loop(50) {
-    // Run every 50ms
-}
+- **电池监测**: 实时监测电池电压
+- **自动休眠**: 可配置的空闲超时（默认 60 秒）
+- **低功耗模式**: 休眠时关闭 LED、传感器、蓝牙
+- **唤醒方式**: 触摸按键唤醒
 
-unload() {
-    // Run once on module unload
-}
-```
+## 开发和调试
 
-### Built-in Functions
+### 串口调试
 
-**Math**: `sin(x)`, `cos(x)`, `abs(x)`, `min(a,b)`, `max(a,b)`, `clamp(x,lo,hi)`, `lerp(a,b,t)`, `map(x,in_min,in_max,out_min,out_max)`
-
-**Color**: `hsv(h,s,v)`, `blend(c1,c2,ratio)`
-
-**LED**: `clear_leds()`, `set_led(index, color)`, `show_leds()`
-
-**Sensors**: `read_spectrum(index)`, `read_gravity()`, `read_orientation()`
-
-**Config**: `get_config(index)`, `set_config(index, value)`
-
-### Operators
-
-- Arithmetic: `+`, `-`, `*`, `/`, `%`
-- Comparison: `==`, `!=`, `<`, `<=`, `>`, `>=`
-- Logical: `&&`, `||`, `!`
-
-### Control Flow
-
-```bottle
-if (condition) {
-    // true branch
-} else {
-    // false branch
-}
-
-while (condition) {
-    // loop body
-}
-
-for (i = 0; i < 10; i = i + 1) {
-    // loop body
-}
-```
-
-### Temporal Statements
-
-```bottle
-// Execute every 90ms
-peaks[x] = max(peaks[x] - 1, spectrum[x]) every 90ms
-```
-
-## Testing
-
-See [test_vm/README.md](test_vm/README.md) for native testing documentation.
+设备通过 USB 串口输出调试信息（115200 波特率）：
 
 ```bash
-# Build and run unit tests
-cd test_vm
-./build_tests.bat
-./unit_tests.exe
+# 使用 PlatformIO 监视器
+pio device monitor
 
-# Build and run integration tests
-./build.bat
-./minimal_test.exe
+# 或使用其他串口工具
+# Windows: PuTTY, TeraTerm
+# Linux/Mac: screen, minicom
 ```
 
-## Project Structure
+### 添加新模块
 
-```
-Bottle/
-├── src/                    # Main source code
-│   ├── bottle_compiler.cpp # Compiler implementation
-│   ├── bottle_vm.cpp       # VM interpreter
-│   ├── bottle_types.cpp    # Type system
-│   ├── module_runtime.cpp  # Module lifecycle
-│   ├── module_registry.cpp # Module management
-│   └── main.cpp            # ESP32 entry point
-├── include/                # Header files
-│   ├── bottle_*.h          # VM headers
-│   ├── module_*.h          # Module system headers
-│   └── app_control.h       # Application control
-├── test_vm/                # Native test suite
-│   ├── unit_tests.cpp      # Unit tests
-│   ├── minimal_test.cpp    # Integration tests
-│   └── README.md           # Test documentation
-├── modules_dev/            # Development modules
-│   └── rhythm_spectrum/    # Example audio-reactive module
-├── docs/                   # Additional documentation
-├── CLAUDE.md               # Architecture documentation
-├── PROJECT_CONFIG.md       # Build configuration
-└── platformio.ini          # PlatformIO configuration
-```
+1. 在 [src/](src/) 目录创建模块源文件
+2. 实现 `setup()`, `loop()`, `unload()` 函数
+3. 在 [module_registry.cpp](src/module_registry.cpp) 注册模块
+4. 重新编译上传
 
-## Serial Commands
+或者使用 Lua 脚本（推荐）：
 
-Connect via serial (115200 baud):
+1. 编写 Lua 脚本（参考 [Lua 开发指南](docs/LUA_SCRIPT_GUIDE.md)）
+2. 通过蓝牙上传到设备
+3. 无需重新编译固件
 
-```
-list                        # List available modules
-load <module_name>          # Load and run a module
-unload                      # Unload current module
-reload                      # Reload current module
-config <key> <value>        # Set configuration value
-status                      # Show system status
-```
+## 依赖库
 
-## Development Workflow
+- **[FastLED](https://github.com/FastLED/FastLED)** (v3.10.3) - LED 控制库
+- **[arduinoFFT](https://github.com/kosme/arduinoFFT)** (v2.0.4) - FFT 实现
+- **[NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino)** (v2.3.9) - 蓝牙协议栈
+- **[HijelHID_BLEMouse](https://github.com/HijelHub/HijelHID_BLEMouse)** - BLE HID 鼠标库
+- **Lua 5.4.7** - 脚本引擎
 
-1. **Write** module in `modules_dev/<name>/main.bottle`
-2. **Test** natively: `cd test_vm && ./build.bat && ./minimal_test.exe`
-3. **Upload** to ESP32: `pio run -t upload`
-4. **Load** via serial: `load <name>`
-5. **Debug** with serial monitor: `pio device monitor`
+## 贡献指南
 
-## Troubleshooting
+欢迎贡献代码、报告问题或提出建议！
 
-### Stack Overflow
-- Reduce loop nesting depth
-- Simplify expressions (fewer intermediate values)
-- Check for infinite loops
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 提交 Pull Request
 
-### Instruction Limit Exceeded
-- Reduce loop iterations
-- Simplify calculations
-- Split complex logic across multiple frames
+**贡献内容**:
+- 新的 Lua 动画模块
+- 硬件改进和优化
+- Bug 修复
+- 文档改进
+- 性能优化
 
-### Array Bounds Error
-- Verify array indices are within [0, length-1]
-- Check loop bounds match array size
+## 许可证
 
-### Unknown Opcode
-- Recompile module (may be corrupted bytecode)
-- Check for compiler errors in serial output
+- **固件代码**: [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)
+- **硬件设计**: [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 
-## Contributing
+**商业使用需获得作者书面许可。**
 
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new features
-4. Ensure all tests pass
-5. Submit a pull request
+## 致谢
 
-## License
+- **FastLED** - 强大的 LED 控制库
+- **arduinoFFT** - 高效的 FFT 实现
+- **Lua** - 优雅的嵌入式脚本语言
+- **ESP32 Arduino Core** - ESP32 开发框架
+- **NimBLE** - 轻量级蓝牙协议栈
 
-[Specify license here]
+## 联系方式
 
-## Credits
+- **问题反馈**: 请在 GitHub Issues 提交
+- **邮件**: 见项目主页
 
-- **FastLED**: LED control library
-- **arduinoFFT**: FFT implementation
-- **ESP32 Arduino Core**: ESP32 framework
+---
 
-## Contact
-
-[Your contact information]
+**版本**: 2.2  
+**硬件版本**: Bottle v2.2 PCBA
