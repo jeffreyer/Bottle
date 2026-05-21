@@ -224,7 +224,7 @@ pio device monitor
 **商业使用需获得作者书面许可。**
 
 ## 致谢
-
+- **好心却黑猫35** - [我制作了一瓶电子海洋](https://www.bilibili.com/video/BV1f2PezXEso/)
 - **FastLED** - 强大的 LED 控制库
 - **arduinoFFT** - 高效的 FFT 实现
 - **Lua** - 优雅的嵌入式脚本语言
@@ -234,7 +234,6 @@ pio device monitor
 ## 联系方式
 
 - **问题反馈**: 请在 GitHub Issues 提交
-- **邮件**: 见项目主页
 
 ---
 

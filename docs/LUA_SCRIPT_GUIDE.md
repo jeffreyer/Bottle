@@ -820,13 +820,5 @@ end
 
 ---
 
-## 更多资源
-
-- 查看内置模块源码：`cloudfunctions/initDatabase/index.js`
-- 硬件 API 实现：`C:\Users\jeff\Desktop\Bottle\src\lua_hardware_api.cpp`
-- 配置系统：`C:\Users\jeff\Desktop\Bottle\src\module_registry.cpp`
-
----
-
 **版本**：1.0.0  
 **更新日期**：2026-05-11
