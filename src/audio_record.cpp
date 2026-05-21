@@ -42,6 +42,16 @@ void record_task_entry(void*) {
     }
 
     if (g_ctx.output_file && bytes_read > 0) {
+      // 软件增益：放大音量 4 倍
+      int16_t* samples = g_ctx.dma_buffer;
+      size_t sample_count = bytes_read / sizeof(int16_t);
+      for (size_t i = 0; i < sample_count; i++) {
+        int32_t amplified = (int32_t)samples[i] * 4;
+        if (amplified > 32767) amplified = 32767;
+        if (amplified < -32768) amplified = -32768;
+        samples[i] = (int16_t)amplified;
+      }
+
       size_t written = fwrite(g_ctx.dma_buffer, 1, bytes_read, g_ctx.output_file);
       g_ctx.bytes_written += written;
 
@@ -134,7 +144,7 @@ int audio_record_start(const char* file_path) {
   } else {
     i2s_std_config_t std_cfg = {
       .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_FREQ),
-      .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+      .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
       .gpio_cfg = {
         .mclk = I2S_GPIO_UNUSED,
         .bclk = (gpio_num_t)I2S_BCK_PIN,
