@@ -48,6 +48,12 @@ static File s_upload_file;
 
 // Config definition upload state
 static bool s_config_def_in_progress = false;
+
+// Color display state
+static bool s_show_color = false;
+static uint8_t s_color_r = 0;
+static uint8_t s_color_g = 0;
+static uint8_t s_color_b = 0;
 static String s_config_def_module_id;
 static String s_config_def_buffer;
 static size_t s_config_def_size = 0;
@@ -763,6 +769,51 @@ static void apply_command(const String& cmd) {
         return;
     }
 
+    // 处理显示颜色命令
+    if (cmd.indexOf("\"show_color\"") >= 0) {
+        int r = 0, g = 0, b = 0;
+
+        // 提取 RGB 值
+        int r_pos = cmd.indexOf("\"r\"");
+        if (r_pos >= 0) {
+            int colon = cmd.indexOf(":", r_pos);
+            int comma = cmd.indexOf(",", colon);
+            if (comma < 0) comma = cmd.indexOf("}", colon);
+            r = cmd.substring(colon + 1, comma).toInt();
+        }
+
+        int g_pos = cmd.indexOf("\"g\"");
+        if (g_pos >= 0) {
+            int colon = cmd.indexOf(":", g_pos);
+            int comma = cmd.indexOf(",", colon);
+            if (comma < 0) comma = cmd.indexOf("}", colon);
+            g = cmd.substring(colon + 1, comma).toInt();
+        }
+
+        int b_pos = cmd.indexOf("\"b\"");
+        if (b_pos >= 0) {
+            int colon = cmd.indexOf(":", b_pos);
+            int comma = cmd.indexOf(",", colon);
+            if (comma < 0) comma = cmd.indexOf("}", colon);
+            b = cmd.substring(colon + 1, comma).toInt();
+        }
+
+        s_show_color = true;
+        s_color_r = (uint8_t)r;
+        s_color_g = (uint8_t)g;
+        s_color_b = (uint8_t)b;
+
+        Serial.printf("BLE: Show color R=%d G=%d B=%d\n", r, g, b);
+        return;
+    }
+
+    // 处理隐藏颜色命令
+    if (cmd.indexOf("\"hide_color\"") >= 0) {
+        s_show_color = false;
+        Serial.println("BLE: Hide color");
+        return;
+    }
+
     set_status(status_json());
 }
 
@@ -1052,5 +1103,24 @@ void ble_config_toggle(void) {
 
 void ble_config_render_mode(void) {
     if (!s_ble_enabled) return;
-    draw_ble_icon();
+
+    // 如果需要显示颜色，绘制 8*8 方格
+    if (s_show_color) {
+        // 计算屏幕中心位置
+        int center_x = MATRIX_WIDTH/2-4;
+        int center_y = MATRIX_HEIGHT/2-4;
+
+        // 绘制 4*4 方格
+        for (int y = 0; y < 8; y++) {
+            for (int x = 0; x < 8; x++) {
+                int led_x = center_x + x;
+                int led_y = center_y + y;
+                leds(led_x, led_y) = CRGB(s_color_r, s_color_g, s_color_b);
+            }
+        }
+        FastLED.show();
+    } else {
+        // 不显示颜色时，显示 BLE 图标
+        draw_ble_icon();
+    }
 }
