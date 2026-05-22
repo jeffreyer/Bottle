@@ -4,6 +4,13 @@
 #include <FastLED.h>
 #include <LEDMatrix.h>
 
+// USB CDC 重定向
+#if !ARDUINO_USB_CDC_ON_BOOT
+#include <USBCDC.h>
+extern USBCDC USBSerial;
+#define Serial USBSerial
+#endif
+
 #define LED_SWITCH_PIN 4
 #define DATA_PIN     48
 #define TOUCH_PIN    12

@@ -15,11 +15,12 @@
 #include "gravity.h"
 #include "audio_fft.h"
 #include "usb_msc.h"
+#include "cmd_handler.h"
 #include <USB.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <time.h>
-#include <dirent.h>
+#include "tusb.h"
+#if !ARDUINO_USB_CDC_ON_BOOT
+USBCDC USBSerial;  // 定义全局对象（在 common.h 中声明为 extern）
+#endif
 
 // Button status enumeration for better code readability
 enum ButtonStatus {
@@ -160,31 +161,21 @@ static bool touch_on_inactive_cb(touch_sensor_handle_t sens_handle, const touch_
       // User held for more than 800ms, use the cycle indicator to determine action
       bool in_ble_mode = ble_config_is_enabled();
 
-      Serial.print("Touch released after long press. BLE mode: ");
-      Serial.print(in_ble_mode);
-      Serial.print(", cycle: ");
-      Serial.println(touch_hold_cycle);
-
       if (in_ble_mode) {
         // In BLE mode: cycle 0 = BLE toggle, cycle 1 = Sleep
         if (touch_hold_cycle == 0) {
           btn_status = BTN_BLE;
-          Serial.println("Set btn_status = BTN_BLE (turn off)");
         } else if (touch_hold_cycle == 1) {
           btn_status = BTN_SLEEP;
-          Serial.println("Set btn_status = BTN_SLEEP");
         }
       } else {
         // Normal mode: cycle 0 = Module, cycle 1 = BLE, cycle 2 = Sleep
         if (touch_hold_cycle == 0) {
           btn_status = BTN_MODULE;
-          Serial.println("Set btn_status = BTN_MODULE");
         } else if (touch_hold_cycle == 1) {
           btn_status = BTN_BLE;
-          Serial.println("Set btn_status = BTN_BLE (turn on)");
         } else if (touch_hold_cycle == 2) {
           btn_status = BTN_SLEEP;
-          Serial.println("Set btn_status = BTN_SLEEP");
         }
       }
     }
@@ -273,11 +264,9 @@ void check_btn(){
     }
     btn_status = BTN_NONE;
     const module_descriptor_t* current = module_registry_get((uint8_t)page_index);
-    int ret = 0;
     if (current && current->unload) {
-      ret = current->unload();
+      current->unload();
     }
-    // Serial.printf("unload %d:%d\n",page_index,ret);
 
     page_index = module_registry_next_enabled(page_index);
     if (page_index < 0) {
@@ -285,20 +274,15 @@ void check_btn(){
     }
     subpage_index=0;
 
-    // Serial.printf("page:%d\n",page_index);
     const module_descriptor_t* next = module_registry_get((uint8_t)page_index);
     if (next && next->setup) {
-      ret = next->setup();
+      next->setup();
     }
     brightness_max = user_brightness_max;
     FastLED.setBrightness(brightness_max);
-    Serial.printf("[main] After module setup, set brightness to user_brightness_max=%d\n", user_brightness_max);
-    // Serial.printf("setup %d:%d\n",page_index,ret);
 
   }
   else if (btn_status == BTN_BLE){
-    Serial.print("Processing BTN_BLE, current BLE state: ");
-    Serial.println(ble_config_is_enabled() ? "enabled" : "disabled");
     btn_status = BTN_NONE;
     ble_config_toggle();
     if (!ble_config_is_enabled()){ //退出蓝牙后重新启动模块
@@ -322,127 +306,44 @@ void check_btn(){
   }
 }
 
-void check_cmd(){
-  if (Serial.available() > 0) {
-    String command = Serial.readString();
-    command.trim();
-
-    if (command.startsWith("sleep=")) {
-      int sec=command.substring(6).toInt();
-      save_config("sleep_sec",sec);
-      s_idle_timeout_ms=sec*1000;
-      Serial.printf("set sleep delay seconds:%d",sec);
-    }
-    else if (command.startsWith("cal=")) {
-      // 格式: cal=0.01,-0.02,0.03
-      String values = command.substring(4);
-      int comma1 = values.indexOf(',');
-      int comma2 = values.indexOf(',', comma1 + 1);
-
-      if (comma1 > 0 && comma2 > comma1) {
-        float offset_x = values.substring(0, comma1).toFloat();
-        float offset_y = values.substring(comma1 + 1, comma2).toFloat();
-        float offset_z = values.substring(comma2 + 1).toFloat();
-
-        gravity_set_calibration(offset_x, offset_y, offset_z);
-        Serial.printf("Calibration set: x=%.4f, y=%.4f, z=%.4f\n", offset_x, offset_y, offset_z);
-      } else {
-        Serial.println("Invalid format. Use: cal=x,y,z (e.g., cal=0.01,-0.02,0.03)");
-      }
-    }
-    else if (command.startsWith("cal?")) {
-      // 查询当前校准值
-      float offset_x, offset_y, offset_z;
-      gravity_get_calibration(&offset_x, &offset_y, &offset_z);
-      Serial.printf("Current calibration: x=%.4f, y=%.4f, z=%.4f\n", offset_x, offset_y, offset_z);
-    }
-    else if (command.startsWith("mic=")) {
-      String value = command.substring(4);
-      bool enabled = value.toInt() != 0;
-      save_config("i2s_mic", enabled);
-      is_i2s_mic = enabled;
-      Serial.printf("I2S Mic %s\n", enabled ? "enabled" : "disabled");
-    }
-    else if (command.startsWith("usb=")) {
-      String value = command.substring(4);
-      if (value == "1" || value == "on") {
-        save_config("usb_msc", 1);
-        Serial.println("USB MSC will be enabled on next reboot");
-        Serial.println("Please restart the device");
-      } else if (value == "0" || value == "off") {
-        save_config("usb_msc", 0);
-        Serial.println("USB MSC will be disabled on next reboot");
-        Serial.println("Please restart the device");
-      } else {
-        Serial.println("Usage: usb=1 (enable) or usb=0 (disable)");
-      }
-    }
-    else if (command.startsWith("usb?")) {
-      Preferences prefs;
-      prefs.begin("bottle", true);
-      bool enabled = prefs.getInt("usb_msc", 0) != 0;
-      prefs.end();
-      Serial.printf("USB MSC: %s (requires reboot to apply)\n", enabled ? "enabled" : "disabled");
-    }
-    else if (command.startsWith("gettime?")) {
-      time_t now = time(NULL);
-      struct tm timeinfo;
-      localtime_r(&now, &timeinfo);
-      Serial.printf("Current time: %04d-%02d-%02d %02d:%02d:%02d (timestamp: %ld)\n",
-        timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-        timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, now);
-    }
-    else if (command.startsWith("ls")) {
-      Serial.println("Files in /extflash:");
-      DIR* dir = opendir("/extflash");
-      if (!dir) {
-        Serial.println("ERROR: Cannot open /extflash");
-      } else {
-        struct dirent* entry;
-        int count = 0;
-        while ((entry = readdir(dir)) != NULL) {
-          char fullpath[256];
-          snprintf(fullpath, sizeof(fullpath), "/extflash/%s", entry->d_name);
-          struct stat st;
-          if (stat(fullpath, &st) == 0) {
-            if (S_ISDIR(st.st_mode)) {
-              Serial.printf("  [DIR]  %s\n", entry->d_name);
-            } else {
-              Serial.printf("  [FILE] %s (%u bytes)\n", entry->d_name, (unsigned int)st.st_size);
-            }
-            count++;
-          }
-        }
-        closedir(dir);
-        if (count == 0) {
-          Serial.println("  (empty)");
-        }
-        Serial.printf("Total: %d items\n", count);
-      }
-    }
-  }
-
-}
-
 void setup() {
-  Serial.begin(115200);
+  // 1. 先初始化 USB CDC
+  #if !ARDUINO_USB_CDC_ON_BOOT
+  USBSerial.begin();
+  #endif
 
+  // 2. 启动 USB 栈（仅 CDC，不启动 MSC）
+  USB.begin();
+
+  // 3. 延迟 3 秒让 USB CDC 重新连接
+  delay(3000);
+
+  // 4. 启用调试输出
+  Serial.setDebugOutput(true);
+  log_e("=== Bottle System Starting ===");
+
+  // 5. 初始化存储（正常挂载文件系统供设备使用）
   storage_init();
 
-  // 恢复时区设置（从 RTC 内存）
+  // 6. 恢复时区设置
   restore_timezone();
 
-  // 读取 USB MSC 配置
+  // 7. 检查是否被弹出过，如果没有则启动时自动启用 USB MSC
   Preferences prefs;
-  prefs.begin("bottle", true);
-  bool enable_usb_msc = prefs.getInt("usb_msc", 0) != 0;
-  prefs.end();
+  bool was_ejected = false;
+  if (prefs.begin("usb_msc", true)) {
+    was_ejected = prefs.getBool("ejected", false);
+    prefs.end();
+  }
 
-  if (enable_usb_msc) {
-    Serial.println("[Setup] Enabling USB MSC mode...");
-    Serial.flush();
-    delay(100);
-    usb_msc_init();
+  if (!was_ejected) {
+    if (usb_msc_init()) {
+      log_e("[Setup] USB MSC enabled - device is now a USB drive");
+    } else {
+      log_e("[Setup] Failed to enable USB MSC");
+    }
+  } else {
+    log_e("[Setup] USB MSC not enabled (was ejected, waiting for reconnection)");
   }
 
   check_low_battery();
@@ -463,18 +364,15 @@ void setup() {
   module_registry_init();
 
   page_index = module_registry_normalize_index(page_index);
-  Serial.printf("[Setup] Page index: %d\n", page_index);
 
   const module_descriptor_t* module = module_registry_get((uint8_t)page_index);
   if (module && module->setup) {
-    Serial.printf("[Setup] Running module setup for: %s\n", module->name);
     module->setup();
   }
 
   // Restore user brightness after module setup
   brightness_max = user_brightness_max;
   FastLED.setBrightness(brightness_max);
-  Serial.printf("[Setup] Restored user brightness to %d\n", user_brightness_max);
 
   sleep_manager_init();
 
@@ -500,6 +398,38 @@ void loop() {
   }
 
   check_cmd();
+
+  // 检查弹出请求
+  usb_msc_check_eject();
+
+  // 检测 USB 连接状态
+  static bool last_usb_connected = false;
+  bool usb_connected = tud_connected() && tud_mounted() && !tud_suspended();
+
+  if (usb_connected != last_usb_connected) {
+    if (usb_connected) {
+      log_e("[USB] Connected and mounted");
+      if (!usb_msc_is_enabled()) {
+        log_e("[USB] Auto-enabling MSC");
+
+        // 清除弹出标志
+        Preferences prefs;
+        if (prefs.begin("usb_msc", false)) {
+          prefs.putBool("ejected", false);
+          prefs.end();
+        }
+
+        usb_msc_init();
+      }
+    } else {
+      log_e("[USB] Disconnected");
+      if (usb_msc_is_enabled()) {
+        log_e("[USB] Auto-disabling MSC, remounting storage");
+        usb_msc_deinit();
+      }
+    }
+    last_usb_connected = usb_connected;
+  }
 
   ble_config_update();
 

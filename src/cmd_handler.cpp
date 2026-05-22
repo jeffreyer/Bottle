@@ -1,0 +1,141 @@
+#include "cmd_handler.h"
+#include "common.h"
+#include "gravity.h"
+#include "audio_fft.h"
+#include "usb_msc.h"
+#include "soc/rtc_cntl_reg.h"
+#include <Preferences.h>
+#include <sys/stat.h>
+#include <dirent.h>
+
+void check_cmd(){
+  if (Serial.available() > 0) {
+    String command = Serial.readString();
+    command.trim();
+
+    // 调试：确认收到命令
+    log_e("[CMD] Received: %s", command.c_str());
+
+    if (command.startsWith("sleep=")) {
+      int sec=command.substring(6).toInt();
+      save_config("sleep_sec",sec);
+      extern uint32_t s_idle_timeout_ms;
+      s_idle_timeout_ms=sec*1000;
+      log_e("Set sleep delay seconds: %d", sec);
+    }
+    else if (command.startsWith("cal=")) {
+      // 格式: cal=0.01,-0.02,0.03
+      String values = command.substring(4);
+      int comma1 = values.indexOf(',');
+      int comma2 = values.indexOf(',', comma1 + 1);
+
+      if (comma1 > 0 && comma2 > comma1) {
+        float offset_x = values.substring(0, comma1).toFloat();
+        float offset_y = values.substring(comma1 + 1, comma2).toFloat();
+        float offset_z = values.substring(comma2 + 1).toFloat();
+
+        gravity_set_calibration(offset_x, offset_y, offset_z);
+        log_e("Calibration set: x=%.4f, y=%.4f, z=%.4f", offset_x, offset_y, offset_z);
+      } else {
+        log_e("Invalid format. Use: cal=x,y,z (e.g., cal=0.01,-0.02,0.03)");
+      }
+    }
+    else if (command.startsWith("cal?")) {
+      // 查询当前校准值
+      float offset_x, offset_y, offset_z;
+      gravity_get_calibration(&offset_x, &offset_y, &offset_z);
+      log_e("Current calibration: x=%.4f, y=%.4f, z=%.4f", offset_x, offset_y, offset_z);
+    }
+    else if (command.startsWith("mic=")) {
+      String value = command.substring(4);
+      bool enabled = value.toInt() != 0;
+      save_config("i2s_mic", enabled);
+      extern bool is_i2s_mic;
+      is_i2s_mic = enabled;
+      log_e("I2S Mic %s", enabled ? "enabled" : "disabled");
+    }
+    else if (command.startsWith("gettime?")) {
+      time_t now = time(NULL);
+      struct tm timeinfo;
+      localtime_r(&now, &timeinfo);
+      log_e("Current time: %04d-%02d-%02d %02d:%02d:%02d (timestamp: %ld)",
+        timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+        timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, now);
+    }
+    else if (command.startsWith("ls")) {
+      if (usb_msc_is_enabled()) {
+        log_e("ERROR: Cannot access /extflash while USB MSC is active");
+        log_e("Please eject the USB drive first");
+      } else {
+        log_e("Files in /extflash:");
+        log_e("Attempting to open directory...");
+        DIR* dir = opendir("/extflash");
+        if (!dir) {
+          log_e("ERROR: Cannot open /extflash (errno: %d)", errno);
+          log_e("Storage may still be locked by MSC");
+        } else {
+          struct dirent* entry;
+          int count = 0;
+          while ((entry = readdir(dir)) != NULL) {
+            char fullpath[256];
+            snprintf(fullpath, sizeof(fullpath), "/extflash/%s", entry->d_name);
+            struct stat st;
+            if (stat(fullpath, &st) == 0) {
+              if (S_ISDIR(st.st_mode)) {
+                log_e("  [DIR]  %s", entry->d_name);
+              } else {
+                log_e("  [FILE] %s (%u bytes)", entry->d_name, (unsigned int)st.st_size);
+              }
+              count++;
+            }
+          }
+          closedir(dir);
+          if (count == 0) {
+            log_e("  (empty)");
+          }
+          log_e("Total: %d items", count);
+        }
+      }
+    }
+    else if (command.startsWith("msc")) {
+      // 手动启用 USB MSC 并清除弹出标志
+      if (usb_msc_is_enabled()) {
+        log_e("USB MSC is currently enabled");
+        log_e("To disable: eject the USB drive from your computer");
+      } else {
+        // 清除弹出标志
+        Preferences prefs;
+        if (prefs.begin("usb_msc", false)) {
+          prefs.putBool("ejected", false);
+          prefs.end();
+          log_e("Cleared ejected flag");
+        }
+
+        log_e("Enabling USB MSC...");
+        if (usb_msc_init()) {
+          log_e("USB MSC enabled - device will appear as USB drive");
+          log_e("WARNING: /extflash is now unavailable for device use");
+        } else {
+          log_e("Failed to enable USB MSC");
+        }
+      }
+    }
+    else if (command.startsWith("dfu")) {
+      // 进入 ROM 下载模式（等同于 GPIO0 拉低 + 复位）
+      log_e("[DFU] Entering ROM download mode...");
+      log_e("[DFU] Device will reboot into bootloader");
+      log_e("[DFU] You can now upload firmware via PlatformIO");
+
+      delay(1000);
+      log_e("[DFU] Rebooting to download mode...");
+      delay(500);
+
+      // 设置 RTC 寄存器强制进入下载模式
+      REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
+
+      // 重启
+      esp_restart();
+    }
+  }
+
+}

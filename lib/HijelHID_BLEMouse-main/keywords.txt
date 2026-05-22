@@ -1,0 +1,121 @@
+# -----------------------------------------------------------------------
+# keywords.txt — HijelHID_BLEMouse
+#
+# KEYWORD1  Class and enum names         — highlighted in orange
+# KEYWORD2  Methods and functions        — highlighted in orange
+# LITERAL1  Constants and enum values    — highlighted in teal
+# -----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
+# Class
+# -----------------------------------------------------------------------
+
+HijelBLEMouse	KEYWORD1
+
+# -----------------------------------------------------------------------
+# Enum types
+# -----------------------------------------------------------------------
+
+MouseButton	KEYWORD1
+HIDRate	KEYWORD1
+HIDSecurity	KEYWORD1
+HIDLogLevel	KEYWORD1
+
+# -----------------------------------------------------------------------
+# Methods — lifecycle
+# -----------------------------------------------------------------------
+
+begin	KEYWORD2
+
+# -----------------------------------------------------------------------
+# Methods — configuration
+# -----------------------------------------------------------------------
+
+setUpdateRate	KEYWORD2
+setTxPower	KEYWORD2
+setBatteryLevel	KEYWORD2
+setSecurityMode	KEYWORD2
+setPasskeyCallback	KEYWORD2
+confirmPasskey	KEYWORD2
+setLogLevel	KEYWORD2
+
+# -----------------------------------------------------------------------
+# Methods — base layer (ISR-safe state setters)
+# -----------------------------------------------------------------------
+
+move	KEYWORD2
+addScroll	KEYWORD2
+addScrollH	KEYWORD2
+setButton	KEYWORD2
+setButtons	KEYWORD2
+
+# -----------------------------------------------------------------------
+# Methods — base layer (status)
+# -----------------------------------------------------------------------
+
+isConnected	KEYWORD2
+isPaired	KEYWORD2
+isBonded	KEYWORD2
+getIdleTime	KEYWORD2
+clearBonds	KEYWORD2
+
+# -----------------------------------------------------------------------
+# Methods — sleep helpers
+# -----------------------------------------------------------------------
+
+beforeSleep	KEYWORD2
+afterWake	KEYWORD2
+
+# -----------------------------------------------------------------------
+# Methods — macro layer
+# -----------------------------------------------------------------------
+
+moveTo	KEYWORD2
+scroll	KEYWORD2
+scrollH	KEYWORD2
+press	KEYWORD2
+release	KEYWORD2
+releaseAll	KEYWORD2
+click	KEYWORD2
+doubleClick	KEYWORD2
+
+# -----------------------------------------------------------------------
+# MouseButton enum values
+# -----------------------------------------------------------------------
+
+Left	LITERAL1
+Right	LITERAL1
+Middle	LITERAL1
+Back	LITERAL1
+Forward	LITERAL1
+
+# -----------------------------------------------------------------------
+# HIDRate enum values
+# -----------------------------------------------------------------------
+
+Hz25	LITERAL1
+Hz50	LITERAL1
+Hz100	LITERAL1
+Hz125	LITERAL1
+
+# -----------------------------------------------------------------------
+# HIDSecurity enum values
+# -----------------------------------------------------------------------
+
+JustWorks	LITERAL1
+Passkey	LITERAL1
+
+# -----------------------------------------------------------------------
+# HIDLogLevel enum values
+# -----------------------------------------------------------------------
+
+Off	LITERAL1
+Normal	LITERAL1
+Verbose	LITERAL1
+
+# -----------------------------------------------------------------------
+# Preprocessor constants
+# -----------------------------------------------------------------------
+
+MOUSE_REPORT_ID_MOUSE	LITERAL1
+MOUSE_MOVE_BUFFER_SIZE	LITERAL1

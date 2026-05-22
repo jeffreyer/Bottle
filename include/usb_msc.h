@@ -13,4 +13,7 @@ void usb_msc_deinit();
 // 检查 USB MSC 是否已初始化
 bool usb_msc_is_enabled();
 
+// 检查并处理弹出请求（在 loop 中调用）
+bool usb_msc_check_eject();
+
 #endif
