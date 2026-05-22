@@ -14,6 +14,9 @@ static uint8_t grid[H][W];
 static bool mask[H][W];
 static int idle_frames = 0;
 static int neck_cooldown = 0;
+static int flow_speed = 5; // 1-10, default 5
+static CRGB fg_color(200, 140, 40); // Sand color
+static CRGB bg_color(30, 20, 0);    // Background color
 
 #define NECK_Y 8
 
@@ -29,7 +32,7 @@ static bool crosses_neck(int x0, int y0, int x1, int y1) {
 }
 
 static void init_mask() {
-    const int profile[H] = {8, 8, 7, 7, 6, 5, 4, 2, 1, 2, 4, 5, 6, 7, 7, 8, 8};
+    const int profile[H] = {8, 8, 8, 7, 6, 5, 4, 2, 1, 2, 4, 5, 6, 7, 8, 8, 8};
 
     for (int y = 0; y < H; y++) {
         int w = profile[y];
@@ -190,9 +193,9 @@ static void render() {
             if (!mask[y][x]) {
                 leds(y, x) = CRGB::Black;
             } else if (grid[y][x]) {
-                leds(y, x) = CRGB(255, 180, 50);
+                leds(y, x) = fg_color;
             } else {
-                leds(y, x) = CRGB(30, 20, 0);
+                leds(y, x) = bg_color;
             }
         }
     }
@@ -201,7 +204,8 @@ static void render() {
 static void init_sand() {
     memset(grid, 0, sizeof(grid));
 
-    for (int y = 0; y < H / 2; y++) {
+    // Fill bottom half with sand (inverted hourglass)
+    for (int y = H / 2; y < H; y++) {
         for (int x = 0; x < W; x++) {
             if (mask[y][x]) {
                 grid[y][x] = 1;
@@ -225,13 +229,39 @@ int sand_loop() {
     render();
     FastLED.show();
 
-    delay(200);
+    // Calculate delay based on flow speed (1=slowest, 10=fastest)
+    // Speed 1: 410ms, Speed 5: 250ms, Speed 10: 50ms
+    int frame_delay = 450 - flow_speed * 40;
+    delay(frame_delay);
     return 0;
 }
 
 int setup_sand() {
     brightness_max = 10;
     FastLED.setBrightness(10);
+
+    // Load flow speed configuration (1-10, default 5)
+    flow_speed = load_config_ns("sandglass", "sand_speed");
+    if (flow_speed < 1) flow_speed = 5;
+    if (flow_speed > 10) flow_speed = 10;
+    Serial.printf("Sandglass flow speed: %d\n", flow_speed);
+
+    // Load color configuration
+    String fg_hex = load_config_string_ns("sandglass", "sand_fg");
+    if (fg_hex.length() > 0 && fg_hex[0] == '#') {
+        long rgb = strtol(fg_hex.c_str() + 1, NULL, 16);
+        fg_color = CRGB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+        Serial.printf("Sandglass foreground color: %s -> RGB(%d,%d,%d)\n",
+                      fg_hex.c_str(), fg_color.r, fg_color.g, fg_color.b);
+    }
+
+    String bg_hex = load_config_string_ns("sandglass", "sand_bg");
+    if (bg_hex.length() > 0 && bg_hex[0] == '#') {
+        long rgb = strtol(bg_hex.c_str() + 1, NULL, 16);
+        bg_color = CRGB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+        Serial.printf("Sandglass background color: %s -> RGB(%d,%d,%d)\n",
+                      bg_hex.c_str(), bg_color.r, bg_color.g, bg_color.b);
+    }
 
     int err = gravity_sensor_start();
     if (err != 0) {
