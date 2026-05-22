@@ -144,7 +144,7 @@ static void init_native_module_configs() {
 
   // Sandglass module config
   String sand_config = "[";
-  sand_config += "{\"type\":\"slider\",\"key\":\"sand_speed\",\"label\":\"Speed\",\"min\":1,\"max\":10,\"step\":1,\"default\":5},";
+  sand_config += "{\"type\":\"slider\",\"key\":\"sand_speed\",\"label\":\"流速\",\"min\":1,\"max\":10,\"step\":1,\"default\":5},";
   sand_config += "{\"type\":\"color\",\"key\":\"sand_fg\",\"label\":\"前景色\",\"default\":\"#C88C28\"},";
   sand_config += "{\"type\":\"color\",\"key\":\"sand_bg\",\"label\":\"背景色\",\"default\":\"#1E1400\"}";
   sand_config += "]";
