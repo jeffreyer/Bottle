@@ -50,3 +50,6 @@ float load_config_float_ns(String ns, String key);
 
 void main_load_config();
 void main_save_config();
+
+// 时区恢复函数（从 RTC 内存恢复时区设置）
+void restore_timezone();

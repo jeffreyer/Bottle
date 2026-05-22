@@ -17,6 +17,8 @@
 #include "usb_msc.h"
 #include <USB.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <time.h>
 #include <dirent.h>
 
 // Button status enumeration for better code readability
@@ -382,6 +384,14 @@ void check_cmd(){
       prefs.end();
       Serial.printf("USB MSC: %s (requires reboot to apply)\n", enabled ? "enabled" : "disabled");
     }
+    else if (command.startsWith("gettime?")) {
+      time_t now = time(NULL);
+      struct tm timeinfo;
+      localtime_r(&now, &timeinfo);
+      Serial.printf("Current time: %04d-%02d-%02d %02d:%02d:%02d (timestamp: %ld)\n",
+        timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+        timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, now);
+    }
     else if (command.startsWith("ls")) {
       Serial.println("Files in /extflash:");
       DIR* dir = opendir("/extflash");
@@ -418,6 +428,9 @@ void setup() {
   Serial.begin(115200);
 
   storage_init();
+
+  // 恢复时区设置（从 RTC 内存）
+  restore_timezone();
 
   // 读取 USB MSC 配置
   Preferences prefs;

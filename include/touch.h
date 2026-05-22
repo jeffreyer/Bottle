@@ -59,7 +59,7 @@ void touch_sleep_init(on_active act,on_inactive inact){
   ESP_ERROR_CHECK(touch_sensor_new_controller(&sens_cfg, &sens_handle));
 
   touch_channel_config_t chan_cfg = {
-    .active_thresh = {230},
+    .active_thresh = {300},
     .charge_speed = TOUCH_CHARGE_SPEED_7,
     .init_charge_volt = TOUCH_INIT_CHARGE_VOLT_DEFAULT,
   };

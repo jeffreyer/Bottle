@@ -7,7 +7,35 @@
 #include "sleep_manager.h"
 #include <Arduino.h>
 #include <NimBLEDevice.h>
+#include <sys/time.h>
+#include <time.h>
 
+// RTC 内存变量，深度休眠期间保持
+RTC_DATA_ATTR int rtc_timezone_offset = 0;
+RTC_DATA_ATTR bool rtc_timezone_valid = false;
+
+// 设置时区的辅助函数
+void set_timezone(int offset) {
+    char tz_str[16];
+    snprintf(tz_str, sizeof(tz_str), "UTC%+d", -offset);
+    setenv("TZ", tz_str, 1);
+    tzset();
+
+    // 保存到 RTC 内存
+    rtc_timezone_offset = offset;
+    rtc_timezone_valid = true;
+}
+
+// 恢复时区设置（在启动时调用）
+void restore_timezone() {
+    if (rtc_timezone_valid) {
+        char tz_str[16];
+        snprintf(tz_str, sizeof(tz_str), "UTC%+d", -rtc_timezone_offset);
+        setenv("TZ", tz_str, 1);
+        tzset();
+        Serial.printf("Restored timezone: UTC%+d\n", rtc_timezone_offset);
+    }
+}
 
 #include <Preferences.h>
 #include <SPIFFS.h>
@@ -811,6 +839,49 @@ static void apply_command(const String& cmd) {
     if (cmd.indexOf("\"hide_color\"") >= 0) {
         s_show_color = false;
         Serial.println("BLE: Hide color");
+        return;
+    }
+
+    // 处理时间同步命令
+    if (cmd.indexOf("\"sync_time\"") >= 0) {
+        int time_pos = cmd.indexOf("\"sync_time\"");
+        if (time_pos >= 0) {
+            int colon = cmd.indexOf(":", time_pos);
+            int comma = cmd.indexOf(",", colon);
+            if (comma < 0) comma = cmd.indexOf("}", colon);
+
+            long timestamp = cmd.substring(colon + 1, comma).toInt();
+
+            // 解析时区偏移量
+            int timezone_offset = 0;
+            int tz_pos = cmd.indexOf("\"timezone\"");
+            if (tz_pos >= 0) {
+                int tz_colon = cmd.indexOf(":", tz_pos);
+                int tz_comma = cmd.indexOf(",", tz_colon);
+                if (tz_comma < 0) tz_comma = cmd.indexOf("}", tz_colon);
+                timezone_offset = cmd.substring(tz_colon + 1, tz_comma).toInt();
+            }
+
+            // 设置时区（会自动保存到 RTC 内存）
+            set_timezone(timezone_offset);
+
+            // 设置系统时间
+            struct timeval tv;
+            tv.tv_sec = timestamp;
+            tv.tv_usec = 0;
+            settimeofday(&tv, NULL);
+
+            Serial.printf("BLE: Time synced to timestamp: %ld, timezone: UTC%+d\n",
+                         timestamp, rtc_timezone_offset);
+
+            // 打印当前时间用于验证
+            time_t now = time(NULL);
+            struct tm timeinfo;
+            localtime_r(&now, &timeinfo);
+            Serial.printf("BLE: Current time: %04d-%02d-%02d %02d:%02d:%02d\n",
+                timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+        }
         return;
     }
 
