@@ -1,4 +1,4 @@
-#include "candle.h"
+﻿#include "candle.h"
 #include <Arduino.h>
 #include <stdio.h>
 #include "common.h"
@@ -214,6 +214,7 @@ static CRGB candle_colorize(uint8_t value, uint8_t theme_hue)
 float t = 0;
 uint32_t last_ms = 0;
 int mem_subindex3=-1;
+static uint8_t flame_hue = 0; // Flame color hue (0-255)
 
 static void candle_orientation(bool* flip_y, int8_t* lean_x) {
     gravity_xy_t g = gravity_get();
@@ -280,13 +281,11 @@ int candle_loop()
     int8_t lean_raw = 0;
     candle_orientation(&flip_y, &lean_raw);
 
-    uint8_t hue = (uint8_t)((subpage_index * 20) % 256);
-
     for (uint8_t y = 0; y < MATRIX_WIDTH; y++) {
         for (uint8_t x = 0; x < MATRIX_HEIGHT; x++) {
             uint8_t value = candle_root_locked_value(y, x, flip_y, t);
 
-            leds(y,MATRIX_HEIGHT-x-1) = candle_colorize(value, hue);
+            leds(y,MATRIX_HEIGHT-x-1) = candle_colorize(value, flame_hue);
         }
     }
 
@@ -302,11 +301,30 @@ int setup_candle(){
     if (err != 0) {
         Serial.println("mpu start failed");
     }
-    
+
     if (mem_subindex3<0)
         mem_subindex3=load_config_ns("candle", "candle_index");
     subpage_index=mem_subindex3;
-    
+
+    // Load flame color configuration
+    String color_hex = load_config_string_ns("candle", "candle_color");
+    if (color_hex.length() > 0 && color_hex[0] == '#') {
+        long rgb = strtol(color_hex.c_str() + 1, NULL, 16);
+        uint8_t r = (rgb >> 16) & 0xFF;
+        uint8_t g = (rgb >> 8) & 0xFF;
+        uint8_t b = rgb & 0xFF;
+        // Convert RGB to HSV to get hue
+        CRGB color(r, g, b);
+        CHSV hsv = rgb2hsv_approximate(color);
+        flame_hue = hsv.hue;
+        Serial.printf("Candle color: %s -> RGB(%d,%d,%d) -> Hue=%d\n",
+                      color_hex.c_str(), r, g, b, flame_hue);
+    } else {
+        // Default: use subpage_index for color variation
+        flame_hue = (uint8_t)((subpage_index * 20) % 256);
+        Serial.printf("Candle using default hue: %d\n", flame_hue);
+    }
+
     return 0;
 
 }

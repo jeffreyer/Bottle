@@ -1,4 +1,4 @@
-#include "module_registry.h"
+﻿#include "module_registry.h"
 #include "common.h"
 #include "candle.h"
 #include "rhythm_lua.h"
@@ -128,7 +128,7 @@ static void init_native_module_configs() {
 
   // Candle module config
   String candle_config = "[";
-  candle_config += "{\"type\":\"slider\",\"key\":\"candle_index\",\"label\":\"Color\",\"min\":0,\"max\":99,\"step\":1,\"default\":0}";
+  candle_config += "{\"type\":\"color\",\"key\":\"candle_color\",\"label\":\"火焰颜色\",\"default\":\"#FF5733\"}";
   candle_config += "]";
 
   String candle_key = "cfg_candle";
