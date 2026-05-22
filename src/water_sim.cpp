@@ -100,7 +100,7 @@ static float surface_factor(const float* grid, int sim_x, int sim_y, float gx, f
     return clampf_local(surface, 0.0f, 1.0f);
 }
 
-static CRGB ocean_color(float amount, int sim_x, int sim_y, uint32_t now_ms, uint8_t hue, float surface) {
+static CRGB ocean_color(float amount, int sim_x, int sim_y, uint32_t now_ms, const CRGB& base_color, float surface) {
     float fill = amount / LED_VAL_MAX_F;
     if (fill <= 0.02f) {
         return CRGB::Black;
@@ -111,11 +111,25 @@ static CRGB ocean_color(float amount, int sim_x, int sim_y, uint32_t now_ms, uin
 
     float surface_f = clampf_local(surface, 0.0f, 1.0f);
     uint8_t shimmer = sin8((uint8_t)(now_ms / 18 + sim_x * 29 + sim_y * 11));
-    uint8_t val = clamp_u8(118 + (int)(fill * 88.0f));
 
-    CRGB c = CHSV(hue, 255, val);
-    CRGB surface_color = CHSV((uint8_t)(hue - 8), 96, clamp_u8(190 + shimmer / 12));
-    CRGB sparkle_color = CHSV((uint8_t)(hue - 6), 36, 230);
+    // 基于填充度调整基础颜色的亮度
+    float brightness_factor = 0.46f + fill * 0.34f; // 0.46 到 0.80
+    CRGB c;
+    c.r = clamp_u8((int)(base_color.r * brightness_factor));
+    c.g = clamp_u8((int)(base_color.g * brightness_factor));
+    c.b = clamp_u8((int)(base_color.b * brightness_factor));
+
+    // 表面高光颜色：基础颜色降低饱和度并提高亮度
+    CRGB surface_color;
+    surface_color.r = clamp_u8((int)(base_color.r * 0.5f + 128 + shimmer / 12));
+    surface_color.g = clamp_u8((int)(base_color.g * 0.5f + 128 + shimmer / 12));
+    surface_color.b = clamp_u8((int)(base_color.b * 0.5f + 128 + shimmer / 12));
+
+    // 闪光颜色：接近白色
+    CRGB sparkle_color;
+    sparkle_color.r = clamp_u8((int)(base_color.r * 0.2f + 184));
+    sparkle_color.g = clamp_u8((int)(base_color.g * 0.2f + 184));
+    sparkle_color.b = clamp_u8((int)(base_color.b * 0.2f + 184));
 
     if (surface > 0.0f) {
         float shimmer_level = 0.68f + ((float)shimmer / 255.0f) * 0.32f;
@@ -149,20 +163,18 @@ static void sim_task(void* arg) {
     // Load custom color settings
     int custom_color_enabled = load_config_ns("water", "color_custom");
     String custom_color_hex = load_config_string_ns("water", "color_hue");
+    Serial.println(custom_color_hex);
 
-    // Convert hex color to HSV hue (0-255)
-    uint8_t custom_color_hue = 160; // default hue
+    // Parse custom RGB color
+    CRGB custom_color(0, 160, 200); // default color (cyan-ish)
     if (custom_color_hex.length() > 0 && custom_color_hex[0] == '#') {
         // Parse hex color #RRGGBB
         long rgb = strtol(custom_color_hex.c_str() + 1, NULL, 16);
         uint8_t r = (rgb >> 16) & 0xFF;
         uint8_t g = (rgb >> 8) & 0xFF;
         uint8_t b = rgb & 0xFF;
-
-        // Convert RGB to HSV hue
-        CRGB color(r, g, b);
-        CHSV hsv = rgb2hsv_approximate(color);
-        custom_color_hue = hsv.hue;
+        custom_color = CRGB(r, g, b);
+        Serial.printf("Custom color RGB: (%d, %d, %d)\n", r, g, b);
     }
 
     const TickType_t frame_ticks = pdMS_TO_TICKS(1000 / SIM_FPS);
@@ -191,11 +203,13 @@ static void sim_task(void* arg) {
             float gy = g.valid ? g.gy : 0.0f;
 
             // Use custom color if enabled, otherwise use palette-based color
-            uint8_t hue;
+            CRGB base_color;
             if (custom_color_enabled) {
-                hue = (uint8_t)custom_color_hue;
+                base_color = custom_color;
             } else {
-                hue = (uint8_t)((subpage_index * 20) % 256);
+                // Generate palette color from subpage_index
+                uint8_t hue = (uint8_t)((subpage_index * 20) % 256);
+                base_color = CHSV(hue, 255, 200);
             }
 
             // 根据当前时间计算潮汐因子（0.0 = 最低潮, 1.0 = 最高潮），
@@ -215,7 +229,7 @@ static void sim_task(void* arg) {
                     if (v > LED_VAL_MAX_F) v = LED_VAL_MAX_F;
 
                     float surface = surface_factor(grid, x, y, gx, gy);
-                    CRGB c = ocean_color(v, x, y, millis(), hue, surface);
+                    CRGB c = ocean_color(v, x, y, millis(), base_color, surface);
 
                     rgb_set(y, x, c.r, c.g, c.b);
 
