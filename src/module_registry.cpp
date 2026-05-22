@@ -106,6 +106,9 @@ static void init_native_module_configs() {
   String water_config = "[";
   water_config += "{\"type\":\"switch\",\"key\":\"color_custom\",\"label\":\"自定义颜色\",\"default\":0}";
   water_config += ",{\"type\":\"color\",\"key\":\"color_hue\",\"label\":\"颜色\",\"default\":\"#00FFAE\"}";
+  water_config += ",{\"type\":\"switch\",\"key\":\"dynamic_tide\",\"label\":\"动态水位\",\"default\":0}";
+  water_config += ",{\"type\":\"slider\",\"key\":\"fixed_level\",\"label\":\"固定水位高度\",\"min\":1,\"max\":100,\"step\":1,\"default\":70,\"unit\":\"%\"}";
+  water_config += ",{\"type\":\"slider\",\"key\":\"tide_peak\",\"label\":\"涨潮峰值时间\",\"min\":0,\"max\":23,\"step\":1,\"default\":12,\"unit\":\"时\"}";
   water_config += "]";
 
   String water_key = "cfg_water";

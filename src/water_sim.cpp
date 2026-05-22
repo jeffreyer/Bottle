@@ -20,16 +20,36 @@
 #define LED_VAL_MAX_F ((float)PANEL_LED_VALUE_MAX)
 #define LED_LEVELS (LED_VAL_MAX_I + 1)
 
+// 简单的潮汐模型：基于当前小时计算潮汐因子
+// 返回值：0.0 = 最低潮, 1.0 = 最高潮
+// peak_hour: 涨潮峰值时间（0-23小时）
+static float calculate_tide_level(int peak_hour) {
+    // 获取当前时间（小时）
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        // 如果无法获取时间，返回中等潮位
+        return 0.4f;
+    }
 
+    // 潮汐周期约12小时（一天两次高潮两次低潮）
+    // 使用正弦波模拟，峰值在 peak_hour 时刻
+    float hour = timeinfo.tm_hour + timeinfo.tm_min / 60.0f;
+    // 计算相对于峰值时间的偏移
+    float offset = hour - (float)peak_hour;
+    // 使用余弦波，使得在 peak_hour 时达到最高潮
+    float tide = 0.25f + 0.5f * cosf(2.0f * M_PI * offset / 12.0f);
 
-// ------------------ 潮汐控制相关常量（你可以修改这两个值）------------------
-// 最高潮时对应的水量倍率（相对于创建 FlipFluid 时的“基础水量”）：
-// 1.0 表示“基础水量”，>1.0 表示比现在更多的水（上限受内部 max_particles 限制）
-#define TIDE_MAX_FILL_RATIO 1.4f
+    return tide;
+}
 
-// 最低潮时对应的水量倍率：
-// 0.3f 表示最低潮时只保留约 30% 的基础水量，你可以根据喜好改成 0.1f~0.9f 等。
-#define TIDE_MIN_FILL_RATIO 0.5f
+// 根据潮汐因子计算颜色
+// tide: 0.0 = 最低潮（深蓝）, 1.0 = 最高潮（青绿）
+static CRGB get_tide_color(float tide) {
+    // 低潮：深蓝色 (Hue ≈ 160)
+    // 高潮：青绿色 (Hue ≈ 128)
+    uint8_t hue = (uint8_t)(160 - tide * 32);
+    return CHSV(hue, 255, 200);
+}
 
 int mem_subindex2=-1;
 
@@ -177,6 +197,17 @@ static void sim_task(void* arg) {
         Serial.printf("Custom color RGB: (%d, %d, %d)\n", r, g, b);
     }
 
+    // Load water level settings
+    int dynamic_tide_enabled = load_config_ns("water", "dynamic_tide");
+    int fixed_level_percent = load_config_ns("water", "fixed_level");
+    if (fixed_level_percent < 1) fixed_level_percent = 40; // default 70%
+    if (fixed_level_percent > 100) fixed_level_percent = 100;
+    int tide_peak_hour = load_config_ns("water", "tide_peak");
+    if (tide_peak_hour < 0) tide_peak_hour = 12; // default 12:00
+    if (tide_peak_hour > 23) tide_peak_hour = 12;
+    Serial.printf("Water level config: dynamic=%d, fixed=%d%%, tide_peak=%d:00\n",
+                  dynamic_tide_enabled, fixed_level_percent, tide_peak_hour);
+
     const TickType_t frame_ticks = pdMS_TO_TICKS(1000 / SIM_FPS);
     const float dt = 1.0f / (float)SIM_FPS;
     TickType_t last_wake = xTaskGetTickCount();
@@ -184,7 +215,18 @@ static void sim_task(void* arg) {
     // 让内部网格就是 W×H（无拉伸、无缩放），并保持方格 spacing
     const float sim_w = 1.0f;
     const float sim_h = sim_w * ((float)(H + 1) / (float)(W + 1));
-    f = flip_create(sim_w, sim_h, W, H, 0.6f);
+
+    // 根据配置决定初始水位高度
+    float initial_fill_ratio;
+    if (dynamic_tide_enabled) {
+        // 动态模式：创建满水位，后续通过潮汐因子调整到 30%-90%
+        initial_fill_ratio = 1.0f;
+    } else {
+        // 固定模式：用户百分比直接对应初始水位高度
+        initial_fill_ratio = (float)fixed_level_percent / 100.0f;
+    }
+
+    f = flip_create(sim_w, sim_h, W, H, initial_fill_ratio);
     if (f) {
         flip_set_gravity_scale(f, 9.81f);
         flip_set_solver_quality(f, 1, 10, 0.9f);
@@ -202,21 +244,28 @@ static void sim_task(void* arg) {
             float gx = g.valid ? g.gx : 0.0f;
             float gy = g.valid ? g.gy : 0.0f;
 
-            // Use custom color if enabled, otherwise use palette-based color
+            // 根据配置决定使用动态潮汐还是固定水位
+            float current_tide = 0.5f;
+            if (dynamic_tide_enabled) {
+                // 动态潮汐：根据当前时间和峰值时间计算潮汐因子
+                current_tide = calculate_tide_level(tide_peak_hour);
+                // 潮汐水位范围：25%-80% (低潮到高潮)
+                flip_set_tide_level(f, current_tide, 0.25f, 0.8f);
+            }
+            // 固定水位模式：初始创建时已设置正确水位，无需每帧调整
+
+            // Use custom color if enabled, otherwise use tide/palette color
             CRGB base_color;
             if (custom_color_enabled) {
                 base_color = custom_color;
+            } else if (dynamic_tide_enabled) {
+                // 动态潮汐模式：颜色随潮汐变化
+                base_color = get_tide_color(current_tide);
             } else {
-                // Generate palette color from subpage_index
+                // 固定水位模式：使用调色板颜色
                 uint8_t hue = (uint8_t)((subpage_index * 20) % 256);
                 base_color = CHSV(hue, 255, 200);
             }
-
-            // 根据当前时间计算潮汐因子（0.0 = 最低潮, 1.0 = 最高潮），
-            // 并在每一帧更新内部粒子数量，实现真实“水量”随潮汐变化。
-            // float tide = time_sync_get_tide_level();
-            float tide = 0.7;
-            flip_set_tide_level(f, tide, TIDE_MIN_FILL_RATIO, TIDE_MAX_FILL_RATIO);
 
             flip_step(f, dt, gx, gy);
             flip_get_led_grid(f, grid, W, H);

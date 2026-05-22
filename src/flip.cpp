@@ -512,15 +512,25 @@ FlipFluid* flip_create(float sim_w, float sim_h, int visible_w, int visible_h, f
 
     float density = 1000.0f;
 
-    float rel_water_h = fill_ratio;
-    float rel_water_w = 0.8f;
-
+    // 粒子配置
     float r = 0.35f * h;
     float dx = 2.0f * r;
     float dy = (sqrtf(3.0f) / 2.0f) * dx;
 
+    // 计算满水位时的粒子布局
+    float rel_water_w = 0.8f;
     int num_x = (int)floorf((rel_water_w * tank_w - 2.0f * h - 2.0f * r) / dx);
-    int num_y = (int)floorf((rel_water_h * tank_h - 2.0f * h - 2.0f * r) / dy);
+    if (num_x < 1) num_x = 1;
+
+    // 根据期望水位高度计算需要的粒子层数
+    // 粒子会受重力下沉，所以需要足够的粒子才能堆积到目标高度
+    // 使用线性关系：期望高度 × 满水位层数
+    float full_height_layers = (tank_h - 2.0f * h - 2.0f * r) / dy;
+    int num_y = (int)floorf(fill_ratio * full_height_layers);
+
+    // 确保至少有 1 层粒子
+    if (num_y < 1) num_y = 1;
+
     int base_particles = MAX(num_x * num_y, 1);
     int max_particles = MAX(base_particles + 256, base_particles * 2);
 
@@ -594,7 +604,19 @@ FlipFluid* flip_create(float sim_w, float sim_h, int visible_w, int visible_h, f
     }
 
     f->particle_rest_density = 0.0f;
-    f->particle_rest_density = 0.0f;
+
+    // 计算参考密度：基于满水位(fill_ratio=1.0)时的粒子密度
+    // 这样不同水位的密度值才能正确比较
+    int ref_num_y = (int)floorf((1.0f * tank_h - 2.0f * h - 2.0f * r) / dy);
+    if (ref_num_y < 1) ref_num_y = 1;
+    int ref_particles = num_x * ref_num_y;
+    // 参考密度 = 满水位时每个流体单元的平均粒子贡献
+    // 假设粒子均匀分布在整个水槽高度
+    float ref_fluid_cells = (float)(sim_num_x - 2) * (sim_num_y - 2);
+    if (ref_fluid_cells > 0.0f) {
+        f->particle_rest_density = (float)ref_particles / ref_fluid_cells;
+    }
+
     f->base_particles = num_x * num_y;
     gamma_init_once();
 
@@ -641,10 +663,8 @@ void flip_step(FlipFluid* f, float dt, float gx, float gy) {
     update_particle_density(f->num_particles, f->particle_pos, f->particle_density,
                             f->f_num_x, f->f_num_y, f->h, f->f_inv_spacing);
 
-    if (f->particle_rest_density == 0.0f) {
-        f->particle_rest_density = calculate_rest_density(
-            f->f_num_cells, f->cell_type, f->particle_density, f->FLUID_CELL);
-    }
+    // particle_rest_density 已在 flip_create 中设置为固定参考值
+    // 不再动态重新计算，以保证不同水位的密度值可比较
 
     solve_incompressibility(f->pressure_iters, dt, 1.9f, 1, f->p, f->u, f->v,
                            f->prev_u, f->prev_v, f->s, f->cell_type, f->particle_density,
