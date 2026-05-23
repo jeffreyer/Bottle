@@ -399,12 +399,20 @@ void loop() {
 
   check_cmd();
 
-  // 检查弹出请求
-  usb_msc_check_eject();
-
   // 检测 USB 连接状态
   static bool last_usb_connected = false;
   bool usb_connected = tud_connected() && tud_mounted() && !tud_suspended();
+
+  // 额外检测：如果 MSC 已启用但 USB 未连接，说明 USB 被拔掉了
+  if (usb_msc_is_enabled() && !usb_connected) {
+    static uint32_t last_disconnect_check = 0;
+    if (millis() - last_disconnect_check > 1000) {
+      last_disconnect_check = millis();
+      log_e("[USB] MSC enabled but USB not connected - forcing deinit");
+      usb_msc_deinit();
+      last_usb_connected = false;
+    }
+  }
 
   if (usb_connected != last_usb_connected) {
     if (usb_connected) {

@@ -12,8 +12,6 @@ USBMSC msc;
 
 // 标志位
 static bool msc_enabled = false;
-static uint32_t last_activity_time = 0;  // 最后一次读写活动时间
-static bool pending_eject = false;  // 待处理的弹出请求
 
 // Wear leveling 句柄
 static wl_handle_t wl_handle = WL_INVALID_HANDLE;
@@ -32,11 +30,6 @@ static int32_t onRead(uint32_t lba, uint32_t offset, void* buffer, uint32_t bufs
     return -1;
   }
 
-  // 更新活动时间
-  last_activity_time = millis();
-
-  log_i("onRead: lba=%u, offset=%u, bufsize=%u", lba, offset, bufsize);
-
   // 计算虚拟地址（使用实际的扇区大小）
   size_t addr = lba * sector_size + offset;
 
@@ -47,7 +40,6 @@ static int32_t onRead(uint32_t lba, uint32_t offset, void* buffer, uint32_t bufs
     return -1;
   }
 
-  log_i("onRead: success, read %u bytes from addr 0x%x", bufsize, addr);
   return bufsize;
 }
 
@@ -56,9 +48,6 @@ static int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t* buffer, uint32_t 
   if (wl_handle == WL_INVALID_HANDLE) {
     return -1;
   }
-
-  // 更新活动时间
-  last_activity_time = millis();
 
   // 计算虚拟地址（使用实际的扇区大小）
   size_t addr = lba * sector_size + offset;
@@ -85,9 +74,6 @@ static int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t* buffer, uint32_t 
 // 启动/停止回调
 static bool onStartStop(uint8_t power_condition, bool start, bool load_eject) {
   if (load_eject && !start) {
-    // 弹出请求：标记待处理，在主循环中处理
-    log_e("[USB MSC] Eject request received");
-    pending_eject = true;
     return true;  // 返回 true 表示接受弹出请求
   }
 
@@ -182,7 +168,6 @@ bool usb_msc_init() {
   }
 
   msc_enabled = true;
-  last_activity_time = millis();  // 初始化活动时间
   log_e("[USB MSC] Enabled successfully");
   return true;
 }
@@ -227,21 +212,4 @@ void usb_msc_deinit() {
 
 bool usb_msc_is_enabled() {
   return msc_enabled;
-}
-
-bool usb_msc_check_eject() {
-  if (pending_eject) {
-    log_e("[USB MSC] Processing eject request - saving state and restarting...");
-
-    Preferences prefs;
-    if (prefs.begin("usb_msc", false)) {
-      prefs.putBool("ejected", true);
-      prefs.end();
-    }
-
-    delay(100);
-    ESP.restart();
-    return true;
-  }
-  return false;
 }
