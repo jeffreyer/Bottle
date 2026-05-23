@@ -97,38 +97,9 @@ void check_cmd(){
         }
       }
     }
-    else if (command.startsWith("msc")) {
-      // 手动启用 USB MSC 并清除弹出标志
-      if (usb_msc_is_enabled()) {
-        log_e("USB MSC is currently enabled");
-        log_e("To disable: eject the USB drive from your computer");
-      } else {
-        // 清除弹出标志
-        Preferences prefs;
-        if (prefs.begin("usb_msc", false)) {
-          prefs.putBool("ejected", false);
-          prefs.end();
-          log_e("Cleared ejected flag");
-        }
-
-        log_e("Enabling USB MSC...");
-        if (usb_msc_init()) {
-          log_e("USB MSC enabled - device will appear as USB drive");
-          log_e("WARNING: /extflash is now unavailable for device use");
-        } else {
-          log_e("Failed to enable USB MSC");
-        }
-      }
-    }
     else if (command.startsWith("dfu")) {
       // 进入 ROM 下载模式（等同于 GPIO0 拉低 + 复位）
       log_e("[DFU] Entering ROM download mode...");
-      log_e("[DFU] Device will reboot into bootloader");
-      log_e("[DFU] You can now upload firmware via PlatformIO");
-
-      delay(1000);
-      log_e("[DFU] Rebooting to download mode...");
-      delay(500);
 
       // 设置 RTC 寄存器强制进入下载模式
       REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);

@@ -314,11 +314,6 @@ void setup() {
 
   // 2. 启动 USB 栈（仅 CDC，不启动 MSC）
   USB.begin();
-
-  // 3. 延迟 3 秒让 USB CDC 重新连接
-  delay(3000);
-
-  // 4. 启用调试输出
   Serial.setDebugOutput(true);
   log_e("=== Bottle System Starting ===");
 
@@ -328,22 +323,10 @@ void setup() {
   // 6. 恢复时区设置
   restore_timezone();
 
-  // 7. 检查是否被弹出过，如果没有则启动时自动启用 USB MSC
-  Preferences prefs;
-  bool was_ejected = false;
-  if (prefs.begin("usb_msc", true)) {
-    was_ejected = prefs.getBool("ejected", false);
-    prefs.end();
-  }
-
-  if (!was_ejected) {
-    if (usb_msc_init()) {
-      log_e("[Setup] USB MSC enabled - device is now a USB drive");
-    } else {
-      log_e("[Setup] Failed to enable USB MSC");
-    }
+  if (usb_msc_init()) {
+    log_e("[Setup] USB MSC enabled - device is now a USB drive");
   } else {
-    log_e("[Setup] USB MSC not enabled (was ejected, waiting for reconnection)");
+    log_e("[Setup] Failed to enable USB MSC");
   }
 
   check_low_battery();
@@ -419,13 +402,6 @@ void loop() {
       log_e("[USB] Connected and mounted");
       if (!usb_msc_is_enabled()) {
         log_e("[USB] Auto-enabling MSC");
-
-        // 清除弹出标志
-        Preferences prefs;
-        if (prefs.begin("usb_msc", false)) {
-          prefs.putBool("ejected", false);
-          prefs.end();
-        }
 
         usb_msc_init();
       }
