@@ -29,11 +29,12 @@ Bottle 是一个基于 ESP32-S3 的可编程 LED 矩阵设备，支持通过 Lua
 
 本项目包含完整的硬件设计文件（Altium Designer 格式）：
 
-- **PCB 设计**: [PCB-Design](PCB-Design/) 目录
-  - 主板原理图: [main.schdoc](PCB-Design/main.schdoc)
-  - LED 阵列原理图: [led_array.schdoc](PCB-Design/led_array.schdoc)
-  - PCB 布局: [bottle.PcbDoc](PCB-Design/bottle.PcbDoc)
-  - Gerber 文件: [Gerber.rar](PCB-Design/Gerber.rar)
+- **PCB 设计**: [Hardware](Hardware/) 目录
+  - 硬件组装说明: [README.md](Hardware/README.md)
+  - 主板原理图: [main.schdoc](Hardware/main.schdoc)
+  - LED 阵列原理图: [led_array.schdoc](Hardware/led_array.schdoc)
+  - PCB 布局: [bottle.PcbDoc](Hardware/bottle.PcbDoc)
+  - Gerber 文件: [Gerber.rar](Hardware/Gerber.rar)
 
 **核心器件**:
 - MCU: ESP32-S3 (N4R2 配置 - 4MB Flash, 2MB PSRAM)
