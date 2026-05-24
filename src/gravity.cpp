@@ -231,3 +231,10 @@ void gravity_get_calibration(float* offset_x, float* offset_y, float* offset_z) 
     if (offset_z) *offset_z = s_cal_offset_z;
 }
 
+void gravity_get_raw(float* raw_x, float* raw_y, float* raw_z) {
+    // 返回未应用校准偏移的原始值
+    if (raw_x) *raw_x = s_gx + s_cal_offset_x;
+    if (raw_y) *raw_y = s_gy + s_cal_offset_y;
+    if (raw_z) *raw_z = s_gz + s_cal_offset_z;
+}
+

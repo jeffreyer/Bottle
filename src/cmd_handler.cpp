@@ -42,10 +42,16 @@ void check_cmd(){
       }
     }
     else if (command.startsWith("cal?")) {
-      // 查询当前校准值
+      // 查询当前加速度计原始值和校准偏移量
+      float raw_x, raw_y, raw_z;
       float offset_x, offset_y, offset_z;
+
+      gravity_get_raw(&raw_x, &raw_y, &raw_z);
       gravity_get_calibration(&offset_x, &offset_y, &offset_z);
+
+      log_e("Raw accelerometer: x=%.4f, y=%.4f, z=%.4f", raw_x, raw_y, raw_z);
       log_e("Current calibration: x=%.4f, y=%.4f, z=%.4f", offset_x, offset_y, offset_z);
+      log_e("Calibrated values: x=%.4f, y=%.4f, z=%.4f", raw_x - offset_x, raw_y - offset_y, raw_z - offset_z);
     }
     else if (command.startsWith("mic=")) {
       String value = command.substring(4);
