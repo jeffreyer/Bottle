@@ -5,6 +5,8 @@
 #include "gravity.h"
 #include "sleep_manager.h"
 
+int custom_color_enabled;
+
 // 柏林噪声的种子序列， 257个元素，最后一个防溢出
 static  uint8_t perm[] PROGMEM = {
     151, 160, 137, 91, 90, 10,
@@ -281,6 +283,9 @@ int candle_loop()
     int8_t lean_raw = 0;
     candle_orientation(&flip_y, &lean_raw);
 
+    if (!custom_color_enabled)
+        flame_hue = (uint8_t)((subpage_index * 20) % 256);
+
     for (uint8_t y = 0; y < MATRIX_WIDTH; y++) {
         for (uint8_t x = 0; x < MATRIX_HEIGHT; x++) {
             uint8_t value = candle_root_locked_value(y, x, flip_y, t);
@@ -306,9 +311,11 @@ int setup_candle(){
         mem_subindex3=load_config_ns("candle", "candle_index");
     subpage_index=mem_subindex3;
 
+    custom_color_enabled = load_config_ns("candle", "color_custom");
+
     // Load flame color configuration
     String color_hex = load_config_string_ns("candle", "candle_color");
-    if (color_hex.length() > 0 && color_hex[0] == '#') {
+    if (custom_color_enabled && color_hex.length() > 0 && color_hex[0] == '#') {
         long rgb = strtol(color_hex.c_str() + 1, NULL, 16);
         uint8_t r = (rgb >> 16) & 0xFF;
         uint8_t g = (rgb >> 8) & 0xFF;
