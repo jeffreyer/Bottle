@@ -846,7 +846,7 @@ void lua_hardware_set_button_holding(bool holding) {
 
 
 // 注入 CONFIG 全局表（从 NVS 读取配置）
-void inject_lua_config_table(lua_State* L, const char* module_id) {
+void inject_lua_config_table(lua_State* L, const char* module_id, const char* script_path) {
   if (!L || !module_id) return;
 
   // 创建 CONFIG 表
@@ -855,9 +855,8 @@ void inject_lua_config_table(lua_State* L, const char* module_id) {
   // 使用 module_id 作为命名空间
   String ns = String(module_id);
 
-  // 从 NVS 读取配置定义 (使用短键名)
-  String config_def_key = String("cfg_") + module_id;
-  String config_def_json = load_config_string(config_def_key);
+  // 从配置文件读取配置定义（根据 script_path 决定文件系统）
+  String config_def_json = load_config_definition(module_id, script_path);
 
   if (config_def_json.length() == 0) {
     // 没有配置定义，设置空的 CONFIG 表

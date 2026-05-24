@@ -6,8 +6,8 @@
 // 包括: led, spectrum, gravity, config, time, button
 void register_lua_hardware_apis(lua_State* L);
 
-// 注入 CONFIG 全局表（从 NVS 读取配置）
-void inject_lua_config_table(lua_State* L, const char* module_id);
+// 注入 CONFIG 全局表（从配置文件读取配置定义，从 NVS 读取配置值）
+void inject_lua_config_table(lua_State* L, const char* module_id, const char* script_path);
 
 // 更新重力传感器快照（在调用 Lua 脚本前调用）
 void lua_hardware_update_gravity();

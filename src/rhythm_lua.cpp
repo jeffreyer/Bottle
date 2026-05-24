@@ -401,8 +401,8 @@ int setup_rhythm_lua_module(void) {
   // Register hardware APIs (from common library)
   register_lua_hardware_apis(g_host.L);
 
-  // Inject CONFIG table from NVS
-  inject_lua_config_table(g_host.L, "rhythm");
+  // Inject CONFIG table (rhythm is a builtin module, script_path is nullptr)
+  inject_lua_config_table(g_host.L, "rhythm", nullptr);
 
   // Load and execute script
   Serial.println("[rhythm_lua] Loading Lua script...");

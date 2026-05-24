@@ -1,4 +1,4 @@
-#include "ble_config.h"
+﻿#include "ble_config.h"
 #include "ble_security.h"
 #include "app_control.h"
 #include "common.h"
@@ -38,8 +38,8 @@ void restore_timezone() {
 }
 
 #include <Preferences.h>
-#include <SPIFFS.h>
 #include <base64.h>
+#include <sys/stat.h>
 
 // 外部变量声明
 extern uint32_t s_idle_timeout_ms;
@@ -72,7 +72,7 @@ static String s_upload_module_id;
 static String s_upload_filename;
 static size_t s_upload_size = 0;
 static size_t s_upload_received = 0;
-static File s_upload_file;
+static FILE* s_upload_file = nullptr;
 
 // Config definition upload state
 static bool s_config_def_in_progress = false;
@@ -271,6 +271,9 @@ static void set_status(const String& s) {
                 packet += '\\';
                 escaped_count++;
             }
+            else if (c == '\n' || c == '\r') {
+                continue;  // 去掉换行符，保持 JSON 在一行
+            }
             packet += c;
         }
         packet += "\"}";
@@ -433,7 +436,8 @@ static void apply_command(const String& cmd) {
 
         // 打开文件准备写入
         String filepath = "/spiffs/" + filename;
-        s_upload_file = SPIFFS.open(filepath.c_str(), FILE_WRITE);
+         
+        s_upload_file = fopen(filepath.c_str(), "w");
         if (!s_upload_file) {
             Serial.println("BLE: 无法创建文件");
             s_upload_in_progress = false;
@@ -458,7 +462,7 @@ static void apply_command(const String& cmd) {
                 size_t decoded_len = base64_decode(encoded.c_str(), encoded.length(), decoded);
 
                 if (s_upload_file && decoded_len > 0) {
-                    s_upload_file.write(decoded, decoded_len);
+                    fwrite(decoded, 1, decoded_len, s_upload_file);
                     s_upload_received += decoded_len;
 
                 }
@@ -473,7 +477,8 @@ static void apply_command(const String& cmd) {
     if (cmd.indexOf("\"upload_complete\"") >= 0 && s_upload_in_progress) {
 
         if (s_upload_file) {
-            s_upload_file.close();
+            fclose(s_upload_file);
+            s_upload_file = nullptr;
         }
         s_upload_in_progress = false;
         String uploaded_module_id = s_upload_module_id;  // 保存模块ID
@@ -523,9 +528,16 @@ static void apply_command(const String& cmd) {
 
                     String config_json = cmd.substring(start, end + 1);
 
-                    // 存储配置定义到NVS (使用短键名以符合NVS 15字符限制)
-                    String key = "cfg_" + module_id;
-                    save_config_string(key, config_json);
+                    // 保存配置定义到文件（而不是 NVS）
+                    String cfg_filename = "/spiffs/" + module_id + ".cfg";
+                    FILE* cfg_file = fopen(cfg_filename.c_str(), "w");
+                    if (cfg_file) {
+                        fwrite(config_json.c_str(), 1, config_json.length(), cfg_file);
+                        fclose(cfg_file);
+                        Serial.printf("BLE: 配置定义已保存到 %s\n", cfg_filename.c_str());
+                    } else {
+                        Serial.printf("BLE: 无法保存配置文件 %s\n", cfg_filename.c_str());
+                    }
 
                 }
             }
@@ -604,9 +616,16 @@ static void apply_command(const String& cmd) {
     // 处理配置定义上传完成
     if (cmd.indexOf("\"config_def_complete\"") >= 0 && s_config_def_in_progress) {
 
-        // 存储配置定义到NVS (使用短键名以符合NVS 15字符限制)
-        String key = "cfg_" + s_config_def_module_id;
-        save_config_string(key, s_config_def_buffer);
+        // 保存配置定义到文件（而不是 NVS）
+        String cfg_filename = "/spiffs/" + s_config_def_module_id + ".cfg";
+        FILE* cfg_file = fopen(cfg_filename.c_str(), "w");
+        if (cfg_file) {
+            fwrite(s_config_def_buffer.c_str(), 1, s_config_def_buffer.length(), cfg_file);
+            fclose(cfg_file);
+            Serial.printf("BLE: 配置定义已保存到 %s\n", cfg_filename.c_str());
+        } else {
+            Serial.printf("BLE: 无法保存配置文件 %s\n", cfg_filename.c_str());
+        }
 
         s_config_def_in_progress = false;
         s_config_def_buffer = "";
@@ -676,17 +695,49 @@ static void apply_command(const String& cmd) {
                 } else {
                     // Lua模块可以物理删除
                     Serial.println("BLE: Lua模块，执行物理删除");
-                    if (module->script_path) {
-                        String path = String("/spiffs/") + module->script_path;
 
-                        if (SPIFFS.exists(path.c_str())) {
-                            if (SPIFFS.remove(path.c_str())) {
-                                Serial.println("BLE: 文件删除成功");
+                    if (module->script_path) {
+                        String script_path = String(module->script_path);
+
+                        // 删除 Lua 脚本文件（使用 POSIX API）
+                        struct stat st;
+                        if (stat(script_path.c_str(), &st) == 0) {
+                            if (remove(script_path.c_str()) == 0) {
+                                Serial.print("BLE: Lua 文件删除成功: ");
+                                Serial.println(script_path);
                             } else {
-                                Serial.println("BLE: 文件删除失败");
+                                Serial.print("BLE: Lua 文件删除失败: ");
+                                Serial.println(script_path);
                             }
-                        } else {
-                            Serial.println("BLE: 文件不存在");
+                        }
+
+                        // 删除配置文件（与脚本在同一文件系统）
+                        if (module->id) {
+                            String module_id = String(module->id);
+                            String cfg_filename = module_id + ".cfg";
+                            String cfg_path;
+
+                            if (script_path.startsWith("/spiffs/")) {
+                                cfg_path = "/spiffs/" + cfg_filename;
+                            } else if (script_path.startsWith("/extflash/")) {
+                                cfg_path = "/extflash/" + cfg_filename;
+                            }
+
+                            if (!cfg_path.isEmpty() && stat(cfg_path.c_str(), &st) == 0) {
+                                if (remove(cfg_path.c_str()) == 0) {
+                                    Serial.print("BLE: 配置文件删除成功: ");
+                                    Serial.println(cfg_path);
+                                }
+                            }
+
+                            // 清除 NVS 中的配置值
+                            Preferences prefs;
+                            if (prefs.begin(module_id.c_str(), false)) {
+                                prefs.clear();
+                                prefs.end();
+                                Serial.print("BLE: NVS 配置清除成功: ");
+                                Serial.println(module_id);
+                            }
                         }
                     }
 

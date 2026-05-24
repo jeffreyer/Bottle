@@ -8,6 +8,7 @@
 #include <Preferences.h>
 #include <SPIFFS.h>
 #include <vector>
+#include <dirent.h>
 
 extern "C" {
 #include "lua.h"
@@ -66,111 +67,17 @@ static String json_escape(const char* value) {
   return s;
 }
 
-// 初始化Native模块的配置定义（首次运行时保存到NVS）
-static void init_native_module_configs() {
-  // Rhythm module config (18 items)
-  String rhythm_config = "[";
-  rhythm_config += "{\"type\":\"select\",\"key\":\"style\",\"label\":\"风格\",\"default\":0,";
-  rhythm_config += "\"options\":[{\"label\":\"绿峰\",\"value\":0},{\"label\":\"彩虹\",\"value\":1},{\"label\":\"分裂\",\"value\":2},{\"label\":\"流动\",\"value\":3}]}";
-  rhythm_config += ",{\"type\":\"slider\",\"key\":\"sensitivity\",\"label\":\"灵敏度\",\"min\":1,\"max\":50,\"step\":1,\"default\":12}";
-
-  // 17 frequency band gains
-  const char* band_labels[] = {
-    "低音0", "低音1", "低音2", "低音3",
-    "中低4", "中低5", "中音6", "中音7",
-    "中音8", "中音9", "中高10", "中高11",
-    "高音12", "高音13", "高音14", "高音15",
-    "超高16"
-  };
-  const int band_defaults[] = {4, 5, 5, 5, 6, 8, 11, 11, 15, 17, 30, 34, 36, 36, 38, 38, 10};
-
-  for (int i = 0; i < 17; i++) {
-    rhythm_config += ",{\"type\":\"slider\",\"key\":\"band_" + String(i) + "\",\"label\":\"" + String(band_labels[i]) + "\"";
-    rhythm_config += ",\"min\":0,\"max\":100,\"step\":1,\"default\":" + String(band_defaults[i]) + "}";
-  }
-  rhythm_config += "]";
-
-  String saved;
-  String rhythm_key = "cfg_rhythm";
-  if (load_config_string(rhythm_key).length() == 0) {
-    Serial.print("Module registry: Saving rhythm config (");
-    Serial.print(rhythm_config.length());
-    Serial.println(" bytes)");
-    save_config_string(rhythm_key, rhythm_config);
-    saved = load_config_string(rhythm_key);
-    Serial.print("Module registry: Verified rhythm config length: ");
-    Serial.println(saved.length());
-  }
-
-  // Water module config
-  String water_config = "[";
-  water_config += "{\"type\":\"switch\",\"key\":\"color_custom\",\"label\":\"自定义颜色\",\"default\":0}";
-  water_config += ",{\"type\":\"color\",\"key\":\"color_hue\",\"label\":\"颜色\",\"default\":\"#00FFAE\"}";
-  water_config += ",{\"type\":\"switch\",\"key\":\"dynamic_tide\",\"label\":\"动态水位\",\"default\":0}";
-  water_config += ",{\"type\":\"slider\",\"key\":\"fixed_level\",\"label\":\"固定水位高度\",\"min\":1,\"max\":100,\"step\":1,\"default\":70,\"unit\":\"%\"}";
-  water_config += ",{\"type\":\"slider\",\"key\":\"tide_peak\",\"label\":\"涨潮峰值时间\",\"min\":0,\"max\":23,\"step\":1,\"default\":12,\"unit\":\"时\"}";
-  water_config += "]";
-
-  String water_key = "cfg_water";
-  String existing = load_config_string(water_key);
-  Serial.print("Module registry: cfg_water existing length: ");
-  Serial.println(existing.length());
-  if (existing.length() == 0) {
-    Serial.print("Module registry: Saving water config (");
-    Serial.print(water_config.length());
-    Serial.println(" bytes)");
-    save_config_string(water_key, water_config);
-    // 验证保存
-    saved = load_config_string(water_key);
-    Serial.print("Module registry: Verified water config length: ");
-    Serial.println(saved.length());
-  }
-
-  // Candle module config
-  String candle_config = "[";
-  candle_config += "{\"type\":\"color\",\"key\":\"candle_color\",\"label\":\"火焰颜色\",\"default\":\"#FF5733\"}";
-  candle_config += "]";
-
-  String candle_key = "cfg_candle";
-  if (load_config_string(candle_key).length() == 0) {
-    Serial.print("Module registry: Saving candle config (");
-    Serial.print(candle_config.length());
-    Serial.println(" bytes)");
-    save_config_string(candle_key, candle_config);
-    saved = load_config_string(candle_key);
-    Serial.print("Module registry: Verified candle config length: ");
-    Serial.println(saved.length());
-  }
-
-  // Sandglass module config
-  String sand_config = "[";
-  sand_config += "{\"type\":\"slider\",\"key\":\"sand_speed\",\"label\":\"流速\",\"min\":1,\"max\":10,\"step\":1,\"default\":5},";
-  sand_config += "{\"type\":\"color\",\"key\":\"sand_fg\",\"label\":\"前景色\",\"default\":\"#C88C28\"},";
-  sand_config += "{\"type\":\"color\",\"key\":\"sand_bg\",\"label\":\"背景色\",\"default\":\"#1E1400\"}";
-  sand_config += "]";
-
-  String sand_key = "cfg_sandglass";
-  if (load_config_string(sand_key).length() == 0) {
-    Serial.print("Module registry: Saving sandglass config (");
-    Serial.print(sand_config.length());
-    Serial.println(" bytes)");
-    save_config_string(sand_key, sand_config);
-    saved = load_config_string(sand_key);
-    Serial.print("Module registry: Verified sandglass config length: ");
-    Serial.println(saved.length());
-  }
-}
 
 // 更新所有模块的 config_count（从NVS读取配置定义）
 static void update_module_config_counts() {
   uint8_t builtin_count = sizeof(k_builtin_modules) / sizeof(k_builtin_modules[0]);
 
-  // 更新 builtin 模块的 config_count
+  // 更新 builtin 模块的 config_count（从配置文件读取）
   for (uint8_t i = 0; i < builtin_count; i++) {
     module_descriptor_t* module = &k_builtin_modules[i];
     if (module->id != nullptr && strlen(module->id) > 0) {
-      String config_def_key = String("cfg_") + module->id;
-      String config_def = load_config_string(config_def_key);
+      // 内置模块的 script_path 为 nullptr，默认从 /spiffs 读取配置
+      String config_def = load_config_definition(module->id, nullptr);
       if (config_def.length() > 0) {
         // 计算配置项数量
         int count = 0;
@@ -265,31 +172,41 @@ static void parse_lua_metadata(const String& content, module_descriptor_t* modul
 }
 
 // Load a dynamic Lua module from SPIFFS
-static bool load_dynamic_lua_module(const char* filename) {
+static bool load_dynamic_lua_module(const char* filename, const char* base_dir) {
   if (s_dynamic_module_count >= MAX_DYNAMIC_MODULES) {
     Serial.println("Module registry: Maximum dynamic modules reached");
     return false;
   }
 
-  String filepath = String("/spiffs/") + filename;
-  File file = SPIFFS.open(filepath.c_str(), FILE_READ);
-  if (!file) {
+  // 构建完整路径
+  String full_path = String(base_dir) + "/" + filename;
+
+  // 使用 POSIX API 读取文件
+  FILE* fp = fopen(full_path.c_str(), "r");
+  if (!fp) {
     Serial.print("Module registry: Failed to open ");
-    Serial.println(filepath);
+    Serial.println(full_path);
     return false;
   }
 
-  String content = file.readString();
-  file.close();
+  // 读取文件内容
+  String content = "";
+  char buffer[256];
+  while (fgets(buffer, sizeof(buffer), fp) != nullptr) {
+    content += buffer;
+  }
+  fclose(fp);
 
   if (content.length() == 0) {
     Serial.print("Module registry: Empty file ");
-    Serial.println(filepath);
+    Serial.println(full_path);
     return false;
   }
 
   Serial.print("Module registry: Loading ");
   Serial.print(filename);
+  Serial.print(" from ");
+  Serial.print(base_dir);
   Serial.print(" (");
   Serial.print(content.length());
   Serial.println(" bytes)");
@@ -298,8 +215,8 @@ static bool load_dynamic_lua_module(const char* filename) {
   uint8_t idx = s_dynamic_module_count;
   module_descriptor_t* module = &s_dynamic_modules[idx];
 
-  // Store script path
-  snprintf(s_dynamic_strings[idx][5], 128, "%s", filename);
+  // Store script path (完整路径，包含目录前缀)
+  snprintf(s_dynamic_strings[idx][5], 128, "%s", full_path.c_str());
   module->script_path = s_dynamic_strings[idx][5];
 
   // Parse metadata from file content
@@ -315,10 +232,10 @@ static bool load_dynamic_lua_module(const char* filename) {
   module->config_count = 0;
   module->built_in = false;
 
-  // 从 NVS 读取配置定义并计算 config_count
+  // 从配置文件读取配置定义并计算 config_count
+  // 配置文件位置根据脚本路径决定：/spiffs 或 /extflash
   if (module->id != nullptr && strlen(module->id) > 0) {
-    String config_def_key = String("cfg_") + module->id;
-    String config_def = load_config_string(config_def_key);
+    String config_def = load_config_definition(module->id, module->script_path);
     if (config_def.length() > 0) {
       // 计算配置项数量（简单统计 "key" 出现次数）
       int count = 0;
@@ -340,7 +257,29 @@ static bool load_dynamic_lua_module(const char* filename) {
   return true;
 }
 
-// Scan SPIFFS for Lua modules
+// Scan a directory for Lua modules
+static void scan_directory_for_modules(const char* dir_path) {
+  DIR* dir = opendir(dir_path);
+  if (!dir) {
+    Serial.print("Module registry: Failed to open directory ");
+    Serial.println(dir_path);
+    return;
+  }
+
+  struct dirent* entry;
+  while ((entry = readdir(dir)) != NULL) {
+    String filename = String(entry->d_name);
+
+    // Check if it's a Lua file
+    if (filename.endsWith(".lua")) {
+      load_dynamic_lua_module(filename.c_str(), dir_path);
+    }
+  }
+
+  closedir(dir);
+}
+
+// Scan SPIFFS and extflash for Lua modules
 static void scan_dynamic_modules(void) {
   s_dynamic_module_count = 0;
 
@@ -350,36 +289,17 @@ static void scan_dynamic_modules(void) {
     s_dynamic_lua_loaded[i] = false;
   }
 
-  if (!SPIFFS.begin(true)) {
-    Serial.println("Module registry: SPIFFS mount failed");
-    return;
-  }
-
-  File root = SPIFFS.open("/spiffs");
-  if (!root || !root.isDirectory()) {
-    Serial.println("Module registry: Failed to open /spiffs directory");
-    return;
-  }
-
   Serial.println("Module registry: Scanning for dynamic modules...");
 
-  File file = root.openNextFile();
-  while (file) {
-    String filename = String(file.name());
-
-    // Remove path prefix if present
-    int lastSlash = filename.lastIndexOf('/');
-    if (lastSlash >= 0) {
-      filename = filename.substring(lastSlash + 1);
-    }
-
-    // Check if it's a Lua file
-    if (filename.endsWith(".lua")) {
-      load_dynamic_lua_module(filename.c_str());
-    }
-
-    file = root.openNextFile();
+  // Scan SPIFFS
+  if (!SPIFFS.begin(true)) {
+    Serial.println("Module registry: SPIFFS mount failed");
+  } else {
+    scan_directory_for_modules("/spiffs");
   }
+
+  // Scan extflash
+  scan_directory_for_modules("/extflash");
 
   Serial.print("Module registry: Found ");
   Serial.print(s_dynamic_module_count);
@@ -408,16 +328,13 @@ static void build_module_list(void) {
 void module_registry_init(void) {
   Serial.println("Module registry: Initializing...");
 
-  // Initialize native module configs (first run only)
-  init_native_module_configs();
-
   // Scan for dynamic modules
   scan_dynamic_modules();
 
   // Build combined module list
   build_module_list();
 
-  // Update config_count for all modules from NVS
+  // Update config_count for all modules from config files
   update_module_config_counts();
 
   // Load enabled state from preferences
@@ -664,10 +581,9 @@ String module_registry_manifest_json(int32_t index) {
   s += ",\"enabled\":" + String(module_registry_is_enabled((uint8_t)index) ? "true" : "false");
   s += ",\"configs\":";
 
-  // 统一从 NVS 读取配置定义（Native和Lua模块都使用JSON格式）
+  // 从配置文件读取配置定义（统一使用 load_config_definition）
   if (module->id != nullptr) {
-    String config_def_key = String("cfg_") + module->id;
-    String config_def = load_config_string(config_def_key);
+    String config_def = load_config_definition(module->id, module->script_path);
     if (config_def.length() > 0) {
       // 注入当前配置值
       String config_with_values = inject_config_values(config_def, module->id);
@@ -729,21 +645,27 @@ static int dynamic_lua_setup(void) {
   luaL_openlibs(L);
   register_lua_hardware_apis(L);
 
-  // 注入 CONFIG 全局表（从 NVS 读取配置）
-  inject_lua_config_table(L, module->id);
+  // 注入 CONFIG 全局表（从配置文件读取配置定义，从 NVS 读取配置值）
+  inject_lua_config_table(L, module->id, module->script_path);
 
-  // Load script from SPIFFS
-  String filepath = String("/spiffs/") + module->script_path;
-  File file = SPIFFS.open(filepath.c_str(), FILE_READ);
-  if (!file) {
+  String script_path = String(module->script_path);
+
+  // 使用 POSIX API 读取文件
+  FILE* fp = fopen(script_path.c_str(), "r");
+  if (!fp) {
     Serial.print("Dynamic Lua setup: Failed to open ");
-    Serial.println(filepath);
+    Serial.println(script_path);
     lua_close(L);
     return -1;
   }
 
-  String script = file.readString();
-  file.close();
+  // 读取文件内容
+  String script = "";
+  char buffer[256];
+  while (fgets(buffer, sizeof(buffer), fp) != nullptr) {
+    script += buffer;
+  }
+  fclose(fp);
 
   // Execute script
   if (luaL_dostring(L, script.c_str()) != LUA_OK) {

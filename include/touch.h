@@ -4,7 +4,7 @@
 static int s_channel_id[1] = {TOUCH_PIN};
 // Active threshold to benchmark ratio. (i.e., touch will be activated when data >= benchmark * (1 + ratio))
 static float s_thresh2bm_ratio = 0.006;  // 2%
-
+static char *TAG = "touch_sleep";
 
 static void touch_do_initial_scanning(touch_sensor_handle_t sens_handle, touch_channel_handle_t chan_handle)
 {

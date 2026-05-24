@@ -43,6 +43,9 @@ void save_config(String key,int value);
 String load_config_string(String key);
 void save_config_string(String key, String value);
 
+// 配置定义加载（从文件读取，根据 script_path 决定文件系统）
+String load_config_definition(const char* module_id, const char* script_path);
+
 // 浮点数配置支持
 float load_config_float(String key);
 void save_config_float(String key, float value);

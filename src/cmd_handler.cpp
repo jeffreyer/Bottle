@@ -3,6 +3,7 @@
 #include "gravity.h"
 #include "audio_fft.h"
 #include "usb_msc.h"
+#include "module_registry.h"
 #include "soc/rtc_cntl_reg.h"
 #include <Preferences.h>
 #include <sys/stat.h>
@@ -62,39 +63,105 @@ void check_cmd(){
         timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
         timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, now);
     }
-    else if (command.startsWith("ls")) {
-      if (usb_msc_is_enabled()) {
-        log_e("ERROR: Cannot access /extflash while USB MSC is active");
-        log_e("Please eject the USB drive first");
-      } else {
-        log_e("Files in /extflash:");
-        log_e("Attempting to open directory...");
-        DIR* dir = opendir("/extflash");
-        if (!dir) {
-          log_e("ERROR: Cannot open /extflash (errno: %d)", errno);
-          log_e("Storage may still be locked by MSC");
-        } else {
-          struct dirent* entry;
-          int count = 0;
-          while ((entry = readdir(dir)) != NULL) {
-            char fullpath[256];
-            snprintf(fullpath, sizeof(fullpath), "/extflash/%s", entry->d_name);
-            struct stat st;
-            if (stat(fullpath, &st) == 0) {
-              if (S_ISDIR(st.st_mode)) {
-                log_e("  [DIR]  %s", entry->d_name);
-              } else {
-                log_e("  [FILE] %s (%u bytes)", entry->d_name, (unsigned int)st.st_size);
-              }
-              count++;
-            }
-          }
-          closedir(dir);
-          if (count == 0) {
-            log_e("  (empty)");
-          }
-          log_e("Total: %d items", count);
+    else if (command.startsWith("lsmod")) {
+      log_e("Registered modules:");
+      uint8_t count = module_registry_count();
+      for (uint8_t i = 0; i < count; i++) {
+        const module_descriptor_t* module = module_registry_get(i);
+        if (module && module->id) {
+          bool enabled = module_registry_is_enabled(i);
+          const char* type = module->script_path ? "dynamic" : "builtin";
+          const char* path = module->script_path ? module->script_path : "N/A";
+          log_e("  [%d] %s %s (configs: %d, enabled: %s, path: %s)",
+                i, module->id, type, module->config_count,
+                enabled ? "yes" : "no", path);
         }
+      }
+      log_e("Total: %d modules", count);
+    }
+    else if (command.startsWith("lsi")) {
+      log_e("Files in /spiffs:");
+      DIR* dir = opendir("/spiffs");
+      if (!dir) {
+        log_e("ERROR: Cannot open /spiffs (errno: %d)", errno);
+      } else {
+        struct dirent* entry;
+        int count = 0;
+        while ((entry = readdir(dir)) != NULL) {
+          char fullpath[256];
+          snprintf(fullpath, sizeof(fullpath), "/spiffs/%s", entry->d_name);
+          struct stat st;
+          if (stat(fullpath, &st) == 0) {
+            if (S_ISDIR(st.st_mode)) {
+              log_e("  [DIR]  %s", entry->d_name);
+            } else {
+              log_e("  [FILE] %s (%u bytes)", entry->d_name, (unsigned int)st.st_size);
+            }
+            count++;
+          }
+        }
+        closedir(dir);
+        if (count == 0) {
+          log_e("  (empty)");
+        }
+        log_e("Total: %d items", count);
+      }
+    }
+    else if (command.startsWith("read ")) {
+      String filename = command.substring(5);
+      filename.trim();
+
+      if (filename.length() == 0) {
+        log_e("ERROR: No filename specified. Usage: read <filename>");
+      } else {
+        char filepath[256];
+        snprintf(filepath, sizeof(filepath), "/spiffs/%s", filename.c_str());
+
+        FILE* fp = fopen(filepath, "r");
+        if (!fp) {
+          log_e("ERROR: Cannot open file %s (errno: %d)", filepath, errno);
+        } else {
+          log_e("Reading file: %s", filepath);
+          log_e("--- BEGIN FILE CONTENT ---");
+
+          char buffer[256];
+          while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+            log_e("%s", buffer);
+          }
+
+          log_e("--- END FILE CONTENT ---");
+          fclose(fp);
+        }
+      }
+    }
+    else if (command.startsWith("ls")) {
+      log_e("Files in /extflash:");
+      log_e("Attempting to open directory...");
+      DIR* dir = opendir("/extflash");
+      if (!dir) {
+        log_e("ERROR: Cannot open /extflash (errno: %d)", errno);
+        log_e("Storage may still be locked by MSC");
+      } else {
+        struct dirent* entry;
+        int count = 0;
+        while ((entry = readdir(dir)) != NULL) {
+          char fullpath[256];
+          snprintf(fullpath, sizeof(fullpath), "/extflash/%s", entry->d_name);
+          struct stat st;
+          if (stat(fullpath, &st) == 0) {
+            if (S_ISDIR(st.st_mode)) {
+              log_e("  [DIR]  %s", entry->d_name);
+            } else {
+              log_e("  [FILE] %s (%u bytes)", entry->d_name, (unsigned int)st.st_size);
+            }
+            count++;
+          }
+        }
+        closedir(dir);
+        if (count == 0) {
+          log_e("  (empty)");
+        }
+        log_e("Total: %d items", count);
       }
     }
     else if (command.startsWith("dfu")) {
