@@ -21,6 +21,9 @@ void gravity_set_calibration(float offset_x, float offset_y, float offset_z);
 // 获取当前校准偏移量
 void gravity_get_calibration(float* offset_x, float* offset_y, float* offset_z);
 
+// 获取原始加速度计值（未应用校准偏移）
+void gravity_get_raw(float* raw_x, float* raw_y, float* raw_z);
+
 // Start gravity sensor producer task (current backend: MPU6050).
 int gravity_sensor_start(void);  // 返回0表示成功，非0表示失败
 

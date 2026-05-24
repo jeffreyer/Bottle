@@ -40,7 +40,7 @@ Bottle 是一个基于 ESP32-S3 的可编程 LED 矩阵设备，支持通过 Lua
 - MCU: ESP32-S3 (N4R2 配置 - 4MB Flash, 2MB PSRAM)
 - 加速度计: LIS3DH
 - LED 驱动: WS2812B 兼容
-- 麦克风: I2S/PDM 数字麦克风（可通过命令行切换）
+- 麦克风: I2S/PDM 数字麦克风（板子支持MSM261D3526Z1CM，MSM261S3526Z0CM，软件可通过命令行切换）
 
 ## 快速开始
 
