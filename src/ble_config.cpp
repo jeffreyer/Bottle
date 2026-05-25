@@ -542,6 +542,7 @@ static void apply_command(const String& cmd) {
                 }
             }
         }
+        module_registry_init(); //更新模块配置项数量
 
         set_status("{\"ok\":true}");
         return;
