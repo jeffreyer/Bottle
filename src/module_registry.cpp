@@ -68,7 +68,7 @@ static String json_escape(const char* value) {
 }
 
 
-// 更新所有模块的 config_count（从NVS读取配置定义）
+// 更新built-in模块的 config_count（从NVS读取配置定义）
 static void update_module_config_counts() {
   uint8_t builtin_count = sizeof(k_builtin_modules) / sizeof(k_builtin_modules[0]);
 
@@ -253,23 +253,25 @@ static bool load_dynamic_lua_module(const char* filename, const char* base_dir) 
   Serial.print(", Name: ");
   Serial.println(module->name ? module->name : "NULL");
 
+  s_all_modules[s_total_module_count++] = &s_dynamic_modules[s_dynamic_module_count];
+
   s_dynamic_module_count++;
   return true;
 }
 
 // Scan a directory for Lua modules
-static void scan_directory_for_modules(const char* dir_path) {
+static int scan_directory_for_modules(const char* dir_path) {
   DIR* dir = opendir(dir_path);
   if (!dir) {
     Serial.print("Module registry: Failed to open directory ");
     Serial.println(dir_path);
-    return;
+
+    return -1;
   }
 
   struct dirent* entry;
   while ((entry = readdir(dir)) != NULL) {
     String filename = String(entry->d_name);
-
     // Check if it's a Lua file
     if (filename.endsWith(".lua")) {
       load_dynamic_lua_module(filename.c_str(), dir_path);
@@ -277,6 +279,28 @@ static void scan_directory_for_modules(const char* dir_path) {
   }
 
   closedir(dir);
+  return 0;
+}
+
+void delay_scan_ext_modules(void *pvParameters) {
+  int ret=-1;
+  uint32_t start_time=millis();
+  uint8_t old_all_cnt=s_total_module_count;
+  
+  while (ret==-1 && millis()-start_time<5000){
+    delay(200);
+    ret=scan_directory_for_modules("/extflash");
+  }
+  
+  Preferences prefs;
+  prefs.begin("modules", true);
+  for (uint8_t i = old_all_cnt; i < s_total_module_count; i++) {
+    String key = String(s_all_modules[i]->id) + "_en";
+    s_enabled[i] = prefs.getBool(key.c_str(), true);
+  }
+  prefs.end();
+  
+  vTaskDelete(NULL);
 }
 
 // Scan SPIFFS and extflash for Lua modules
@@ -299,7 +323,10 @@ static void scan_dynamic_modules(void) {
   }
 
   // Scan extflash
-  scan_directory_for_modules("/extflash");
+  int ret=scan_directory_for_modules("/extflash");
+  if (ret==-1){
+    xTaskCreatePinnedToCore(delay_scan_ext_modules, "delay_scan_ext_mod", 4096, NULL, 6, NULL, 1);
+  }
 
   Serial.print("Module registry: Found ");
   Serial.print(s_dynamic_module_count);
@@ -316,11 +343,6 @@ static void build_module_list(void) {
     s_all_modules[s_total_module_count++] = &k_builtin_modules[i];
   }
 
-  // Add dynamic modules
-  for (uint8_t i = 0; i < s_dynamic_module_count; i++) {
-    s_all_modules[s_total_module_count++] = &s_dynamic_modules[i];
-  }
-
   Serial.print("Module registry: Total modules: ");
   Serial.println(s_total_module_count);
 }
@@ -328,14 +350,13 @@ static void build_module_list(void) {
 void module_registry_init(void) {
   Serial.println("Module registry: Initializing...");
 
-  // Scan for dynamic modules
-  scan_dynamic_modules();
-
-  // Build combined module list
   build_module_list();
 
-  // Update config_count for all modules from config files
+  // Update config_count for built-in modules from config files
   update_module_config_counts();
+
+  // Scan for dynamic modules and add them to the list
+  scan_dynamic_modules();
 
   // Load enabled state from preferences
   Preferences prefs;
