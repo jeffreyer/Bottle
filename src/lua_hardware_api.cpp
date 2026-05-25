@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <FastLED.h>
+#include <Preferences.h>
 #include "app_control.h"
 #include "audio_fft.h"
 #include "audio_record.h"
@@ -434,6 +435,54 @@ int draw_led_text(const char* text,int x,int y,int r,int g,int b) {
   return 0;
 
 }
+
+// Draw text with 180 degree rotation
+int draw_led_text_rotated(const char* text, int x, int y, int r, int g, int b) {
+  // Calculate text length
+  int text_len = 0;
+  while (text[text_len] != '\0') text_len++;
+
+  // Start drawing 1 pixel to the right to move trailing space from left to right
+  // This makes the spacing consistent with normal text (trailing space on the right)
+  int x_offset = 1;
+
+  // Draw characters in reverse order (right to left)
+  for (int i = text_len - 1; i >= 0; i--) {
+    unsigned char c = (unsigned char)text[i];
+
+    // Check if character is in our font range (space to z)
+    if (c >= 0x20 && c <= 0x7A) {
+      int char_index = c - 0x20;
+      const uint8_t* glyph = font3x5_complete[char_index];
+
+      // Calculate position for this character
+      int cursor_x = x + x_offset + (text_len - 1 - i) * 4;
+
+      // Draw character rotated 180 degrees
+      // For 180 degree rotation: both X and Y are flipped, and we read from mirrored position
+      for (int col = 0; col < 3; col++) {
+        int draw_x = cursor_x + col;
+        if (draw_x < 0 || draw_x >= MATRIX_WIDTH) continue;
+
+        for (int row = 0; row < 5; row++) {
+          int draw_y = y - row;
+          if (draw_y < 0 || draw_y >= MATRIX_HEIGHT) continue;
+
+          // Read pixel from the 180-degree rotated position in the glyph
+          // Pixel at output (col, row) comes from input (2-col, 4-row)
+          bool pixel = (glyph[2 - col] >> (4 - row)) & 0x01;
+
+          if (pixel) {
+            leds(draw_x, draw_y) = CRGB(r, g, b);
+          }
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+
 // led.text(x, y, text, r, g, b)
 // Draws text at position (x, y) with color (r, g, b)
 // Uses 3x5 font for all characters
@@ -450,6 +499,22 @@ static int lua_led_text(lua_State* L) {
   return 0;
 }
 
+// led.text_rotated(x, y, text, r, g, b)
+// Draws text rotated 180 degrees at position (x, y) with color (r, g, b)
+// Note: y is the bottom of the text when rotated
+static int lua_led_text_rotated(lua_State* L) {
+  int x = (int)luaL_checknumber(L, 1);
+  int y = (int)luaL_checknumber(L, 2);
+  const char* text = luaL_checkstring(L, 3);
+  int r = (int)luaL_checknumber(L, 4);
+  int g = (int)luaL_checknumber(L, 5);
+  int b = (int)luaL_checknumber(L, 6);
+
+  draw_led_text_rotated(text, x, y, r, g, b);
+
+  return 0;
+}
+
 static const luaL_Reg led_lib[] = {
   {"clear", lua_led_clear},
   {"show", lua_led_show},
@@ -457,6 +522,7 @@ static const luaL_Reg led_lib[] = {
   {"hsv", lua_led_hsv},
   {"palette", lua_led_palette},
   {"text", lua_led_text},
+  {"text_rotated", lua_led_text_rotated},
   {NULL, NULL}
 };
 
@@ -597,9 +663,42 @@ static int lua_time_delay(lua_State* L) {
   return 0;
 }
 
+// time.now() -> returns table with current time {year, month, day, hour, min, sec, wday}
+static int lua_time_now(lua_State* L) {
+  time_t now = time(NULL);
+  struct tm timeinfo;
+  localtime_r(&now, &timeinfo);
+
+  lua_newtable(L);
+
+  lua_pushinteger(L, timeinfo.tm_year + 1900);
+  lua_setfield(L, -2, "year");
+
+  lua_pushinteger(L, timeinfo.tm_mon + 1);
+  lua_setfield(L, -2, "month");
+
+  lua_pushinteger(L, timeinfo.tm_mday);
+  lua_setfield(L, -2, "day");
+
+  lua_pushinteger(L, timeinfo.tm_hour);
+  lua_setfield(L, -2, "hour");
+
+  lua_pushinteger(L, timeinfo.tm_min);
+  lua_setfield(L, -2, "min");
+
+  lua_pushinteger(L, timeinfo.tm_sec);
+  lua_setfield(L, -2, "sec");
+
+  lua_pushinteger(L, timeinfo.tm_wday);
+  lua_setfield(L, -2, "wday");
+
+  return 1;
+}
+
 static const luaL_Reg time_lib[] = {
   {"millis", lua_time_millis},
   {"delay", lua_time_delay},
+  {"now", lua_time_now},
   {NULL, NULL}
 };
 
@@ -767,10 +866,42 @@ static const luaL_Reg record_lib[] = {
 };
 
 // ============================================================================
+// Custom print function that redirects to log_e
+// ============================================================================
+
+static int lua_print(lua_State* L) {
+  int n = lua_gettop(L);  // Number of arguments
+  String output = "";
+
+  for (int i = 1; i <= n; i++) {
+    if (i > 1) output += "\t";  // Tab separator between arguments
+
+    if (lua_isstring(L, i)) {
+      output += lua_tostring(L, i);
+    } else if (lua_isboolean(L, i)) {
+      output += lua_toboolean(L, i) ? "true" : "false";
+    } else if (lua_isnumber(L, i)) {
+      output += String(lua_tonumber(L, i));
+    } else if (lua_isnil(L, i)) {
+      output += "nil";
+    } else {
+      output += lua_typename(L, lua_type(L, i));
+    }
+  }
+
+  log_e("%s", output.c_str());
+  return 0;
+}
+
+// ============================================================================
 // 注册所有 API
 // ============================================================================
 
 void register_lua_hardware_apis(lua_State* L) {
+  // Override print function to use log_e
+  lua_pushcfunction(L, lua_print);
+  lua_setglobal(L, "print");
+
   // Register led library
   luaL_newlib(L, led_lib);
   lua_setglobal(L, "led");
@@ -914,37 +1045,46 @@ void inject_lua_config_table(lua_State* L, const char* module_id, const char* sc
       }
 
       // 根据类型从 NVS 读取配置值（使用命名空间）
-      if (type == "slider" || type == "number") {
-        // 尝试读取浮点数
-        float float_value = load_config_float_ns(ns, key);
-        if (float_value != 0.0f) {
-          lua_pushstring(L, key.c_str());
-          lua_pushnumber(L, float_value);
-          lua_settable(L, -3);
-        } else {
-          // 尝试读取整数
-          int int_value = load_config_ns(ns, key);
-          if (int_value != 0) {
+      // 使用 isKey() 检查配置是否存在，避免将未保存的配置设置为默认值
+      Preferences prefs;
+      prefs.begin(ns.c_str(), true);
+      bool key_exists = prefs.isKey(key.c_str());
+
+      if (key_exists) {
+        if (type == "slider" || type == "number") {
+          // 尝试读取浮点数
+          float float_value = prefs.getFloat(key.c_str(), 0.0f);
+          if (float_value != 0.0f) {
             lua_pushstring(L, key.c_str());
-            lua_pushnumber(L, int_value);
+            lua_pushnumber(L, float_value);
+            lua_settable(L, -3);
+          } else {
+            // 尝试读取整数
+            int int_value = prefs.getInt(key.c_str(), 0);
+            if (int_value != 0) {
+              lua_pushstring(L, key.c_str());
+              lua_pushnumber(L, int_value);
+              lua_settable(L, -3);
+            }
+          }
+        } else if (type == "text" || type == "color" || type == "select") {
+          // 字符串类型
+          String string_value = prefs.getString(key.c_str(), "");
+          if (string_value.length() > 0) {
+            lua_pushstring(L, key.c_str());
+            lua_pushstring(L, string_value.c_str());
             lua_settable(L, -3);
           }
-        }
-      } else if (type == "text" || type == "color" || type == "select") {
-        // 字符串类型
-        String string_value = load_config_string_ns(ns, key);
-        if (string_value.length() > 0) {
+        } else if (type == "switch") {
+          // 布尔类型 - key 存在时读取实际值
+          int bool_value = prefs.getInt(key.c_str(), 0);
           lua_pushstring(L, key.c_str());
-          lua_pushstring(L, string_value.c_str());
+          lua_pushboolean(L, bool_value != 0);
           lua_settable(L, -3);
         }
-      } else if (type == "switch") {
-        // 布尔类型
-        int bool_value = load_config_ns(ns, key);
-        lua_pushstring(L, key.c_str());
-        lua_pushboolean(L, bool_value != 0);
-        lua_settable(L, -3);
       }
+
+      prefs.end();
     }
 
     pos = obj_end + 1;

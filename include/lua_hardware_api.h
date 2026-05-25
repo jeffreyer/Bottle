@@ -28,3 +28,4 @@ void lua_hardware_send_button_event(int event_type);
 void lua_hardware_set_button_holding(bool holding);
 
 int draw_led_text(const char* text,int x,int y,int r,int g,int b);
+int draw_led_text_rotated(const char* text, int x, int y, int r, int g, int b);
