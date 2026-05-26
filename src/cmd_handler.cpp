@@ -4,6 +4,7 @@
 #include "audio_fft.h"
 #include "usb_msc.h"
 #include "module_registry.h"
+#include "ble_config.h"
 #include "soc/rtc_cntl_reg.h"
 #include <Preferences.h>
 #include <sys/stat.h>
@@ -150,6 +151,11 @@ void check_cmd(){
 
       // 重启
       esp_restart();
+    }
+    else if (command.startsWith("unbind")) {
+      // 清除蓝牙绑定状态
+      ble_config_unbind();
+      log_e("[BLE] Device unbound, password regenerated");
     }
   }
 

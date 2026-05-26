@@ -1247,3 +1247,13 @@ void ble_config_render_mode(void) {
         draw_ble_icon();
     }
 }
+
+void ble_config_unbind(void) {
+    deviceSecurity.unbind();
+    Serial.println("BLE: Device unbound, password regenerated");
+
+    // 更新密码特征值
+    if (s_password_char) {
+        s_password_char->setValue(deviceSecurity.getPassword().c_str());
+    }
+}
