@@ -24,35 +24,6 @@ void check_cmd(){
       s_idle_timeout_ms=sec*1000;
       log_e("Set sleep delay seconds: %d", sec);
     }
-    else if (command.startsWith("cal=")) {
-      // 格式: cal=0.01,-0.02,0.03
-      String values = command.substring(4);
-      int comma1 = values.indexOf(',');
-      int comma2 = values.indexOf(',', comma1 + 1);
-
-      if (comma1 > 0 && comma2 > comma1) {
-        float offset_x = values.substring(0, comma1).toFloat();
-        float offset_y = values.substring(comma1 + 1, comma2).toFloat();
-        float offset_z = values.substring(comma2 + 1).toFloat();
-
-        gravity_set_calibration(offset_x, offset_y, offset_z);
-        log_e("Calibration set: x=%.4f, y=%.4f, z=%.4f", offset_x, offset_y, offset_z);
-      } else {
-        log_e("Invalid format. Use: cal=x,y,z (e.g., cal=0.01,-0.02,0.03)");
-      }
-    }
-    else if (command.startsWith("cal?")) {
-      // 查询当前加速度计原始值和校准偏移量
-      float raw_x, raw_y, raw_z;
-      float offset_x, offset_y, offset_z;
-
-      gravity_get_raw(&raw_x, &raw_y, &raw_z);
-      gravity_get_calibration(&offset_x, &offset_y, &offset_z);
-
-      log_e("Raw accelerometer: x=%.4f, y=%.4f, z=%.4f", raw_x, raw_y, raw_z);
-      log_e("Current calibration: x=%.4f, y=%.4f, z=%.4f", offset_x, offset_y, offset_z);
-      log_e("Calibrated values: x=%.4f, y=%.4f, z=%.4f", raw_x - offset_x, raw_y - offset_y, raw_z - offset_z);
-    }
     else if (command.startsWith("mic=")) {
       String value = command.substring(4);
       bool enabled = value.toInt() != 0;
