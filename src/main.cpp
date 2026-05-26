@@ -9,6 +9,7 @@
 #include "app_control.h"
 #include "module_registry.h"
 #include "lua_hardware_api.h"
+#include "auto_ota.h"
 #include <Preferences.h>
 #include "storage_flash.h"
 #include "battery.h"
@@ -316,11 +317,24 @@ void setup() {
   USB.begin();
   Serial.setDebugOutput(true);
   log_e("=== Bottle System Starting ===");
+  log_e("Firmware Version: %s", FIRMWARE_VERSION);
+  log_e("Build Date: %s %s", __DATE__, __TIME__);
 
   // 5. 初始化存储（正常挂载文件系统供设备使用）
   storage_init();
 
-  // 6. 恢复时区设置
+  pinMode(LED_SWITCH_PIN, OUTPUT);
+  digitalWrite(LED_SWITCH_PIN, LOW);
+  rgb_init();
+
+  // 6. 检查并执行自动 OTA 更新（如果有 firmware.bin）
+  if (auto_ota_check_and_update()) {
+    // OTA 更新执行中或失败，函数内部会处理重启或清理
+    // 如果到这里说明更新失败，继续正常启动
+    log_e("[Setup] OTA update failed or completed, continuing normal boot");
+  }
+
+  // 7. 恢复时区设置
   restore_timezone();
 
   if (usb_msc_init()) {
@@ -331,16 +345,11 @@ void setup() {
 
   check_low_battery();
 
-  pinMode(LED_SWITCH_PIN, OUTPUT);
-  digitalWrite(LED_SWITCH_PIN, LOW);
-
   main_load_config();
 
   gravity_init();
   if (s_idle_timeout_ms>0)
     gravity_sensor_start();
-
-  rgb_init();
 
   touch_sleep_init(touch_on_active_cb,touch_on_inactive_cb);
 

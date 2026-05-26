@@ -157,6 +157,11 @@ void check_cmd(){
       ble_config_unbind();
       log_e("[BLE] Device unbound, password regenerated");
     }
+    else if (command.startsWith("ver")) {
+      // 查询固件版本号
+      log_e("Firmware Version: %s", FIRMWARE_VERSION);
+      log_e("Build Date: %s %s", __DATE__, __TIME__);
+    }
   }
 
 }

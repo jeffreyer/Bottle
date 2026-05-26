@@ -4,6 +4,9 @@
 #include <FastLED.h>
 #include <LEDMatrix.h>
 
+// 固件版本号
+#define FIRMWARE_VERSION "1.0.5"
+
 // USB CDC 重定向
 #if !ARDUINO_USB_CDC_ON_BOOT
 #include <USBCDC.h>
