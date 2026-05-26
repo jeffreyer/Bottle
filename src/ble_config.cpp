@@ -208,8 +208,8 @@ static String status_json(bool include_modules = false) {
 static void set_status(const String& s) {
     if (!s_status_char) return;
 
-    // 如果数据小于 300 字节，直接发送
-    if (s.length() <= 500) {
+    // 如果数据小于 180 字节，直接发送
+    if (s.length() <= 180) { //ios限制，实际测试中约 185 字节，留出协议开销后约 180 字节
         s_status_char->setValue(s.c_str());
         if (s_client_connected) {
             s_status_char->notify();
@@ -217,7 +217,7 @@ static void set_status(const String& s) {
         return;
     }
 
-    const int chunk_size = 300;  // 保守值，确保包装后不超过 MTU
+    const int chunk_size = 100;  // 保守值，确保包装后不超过 MTU
     const char* str = s.c_str();
     int str_len = s.length();
     int pos = 0;
@@ -278,7 +278,7 @@ static void set_status(const String& s) {
         }
         packet += "\"}";
 
-        if (packet.length() > 512) {
+        if (packet.length() > 185) {
             Serial.print("BLE: 错误！分块过大: ");
             Serial.println(packet.length());
             pos += len;
@@ -324,78 +324,43 @@ static void draw_ble_icon(void) {
 static void apply_command(const String& cmd) {
     int value = 0;
 
-    // 处理分页获取状态请求
+    // 处理获取状态请求
     if (cmd.indexOf("\"get_status\"") >= 0) {
-        int start_idx = 0;
-        int idx_pos = cmd.indexOf("\"get_status\"");
-        if (idx_pos >= 0) {
-            int colon = cmd.indexOf(":", idx_pos);
-            if (colon >= 0) {
-                start_idx = cmd.substring(colon + 1).toInt();
-            }
-        }
+        // 构建完整状态 JSON，包含所有模块
+        String status = "{";
 
-        // 获取模块总数
+        uint32_t sleep_sec = s_idle_timeout_ms / 1000;
+        String mac = NimBLEDevice::getAddress().toString().c_str();
+        status += "\"ok\":true,";
+        status += "\"model\":\"" + String(DEVICE_MODEL) + "\",";
+        status += "\"mac\":\"" + mac + "\",";
+        status += "\"brightness\":" + String(brightness_max) + ",";
+        status += "\"sleep_sec\":" + String(sleep_sec) + ",";
+        status += "\"page\":" + String(page_index) + ",";
+        status += "\"subpage\":" + String(subpage_index) + ",";
+        status += "\"page_count\":" + String(app_get_page_count()) + ",";
+
+        status += "\"modules\":[";
+
         int total_modules = module_registry_count();
+        for (int i = 0; i < total_modules; i++) {
+            if (i > 0) status += ",";
 
-        // 每次尝试发送的模块数（动态调整以保证 JSON < 实际 MTU）
-        const int MAX_JSON_SIZE = 500;  // 实际 MTU 约 253 字节，留余量
-        int modules_to_send = 5;  // 初始值，每个模块约 60 字节
-
-        String status;
-        bool has_more = false;
-
-        // 尝试构建 JSON，如果超过限制则减少模块数
-        while (modules_to_send > 0) {
-            status = "{";
-
-            // 第一次请求（start_idx == 0）包含全局信息
-            if (start_idx == 0) {
-                uint32_t sleep_sec = s_idle_timeout_ms / 1000;
-                String mac = NimBLEDevice::getAddress().toString().c_str();
-                status += "\"ok\":true,";
-                status += "\"model\":\"" + String(DEVICE_MODEL) + "\",";
-                status += "\"mac\":\"" + mac + "\",";
-                status += "\"brightness\":" + String(brightness_max) + ",";
-                status += "\"sleep_sec\":" + String(sleep_sec) + ",";
-                status += "\"page\":" + String(page_index) + ",";
-                status += "\"subpage\":" + String(subpage_index) + ",";
-                status += "\"page_count\":" + String(app_get_page_count()) + ",";
+            const module_descriptor_t* m = module_registry_get(i);
+            if (m) {
+                status += "{\"i\":" + String(i);
+                status += ",\"id\":\"" + String(m->id) + "\"";
+                status += ",\"n\":\"" + String(m->name) + "\"";
+                status += ",\"b\":" + String(m->built_in ? 1 : 0);
+                status += ",\"e\":" + String(module_registry_is_enabled(i) ? 1 : 0);
+                status += ",\"c\":" + String(m->config_count);
+                status += "}";
             }
-
-            status += "\"modules\":[";
-
-            int end_idx = min(start_idx + modules_to_send, total_modules);
-            for (int i = start_idx; i < end_idx; i++) {
-                if (i > start_idx) status += ",";
-
-                const module_descriptor_t* m = module_registry_get(i);
-                if (m) {
-                    status += "{\"i\":" + String(i);
-                    status += ",\"id\":\"" + String(m->id) + "\"";
-                    status += ",\"n\":\"" + String(m->name) + "\"";
-                    status += ",\"b\":" + String(m->built_in ? 1 : 0);
-                    status += ",\"e\":" + String(module_registry_is_enabled(i) ? 1 : 0);
-                    status += ",\"c\":" + String(m->config_count);
-                    status += "}";
-                }
-            }
-
-            status += "],";
-            has_more = (end_idx < total_modules);
-            status += "\"start_idx\":" + String(start_idx) + ",";
-            status += "\"has_more\":" + String(has_more ? "true" : "false");
-            status += "}";
-
-            // 检查大小
-            if (status.length() <= MAX_JSON_SIZE) {
-                break;  // 大小合适，退出循环
-            }
-
-            // 太大了，减少模块数重试
-            modules_to_send = max(1, modules_to_send - 1);
-
         }
+
+        status += "]}";
+
+        // 由 set_status 自动处理分块传输
         set_status(status);
         return;
     }
