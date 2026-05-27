@@ -270,6 +270,7 @@ pio device monitor
 ## 联系方式
 
 - **问题反馈**: 请在 GitHub Issues 提交
+- **联系作者**: 不爱吃炸鸡ab6 （全网同名）
 
 ---
 
