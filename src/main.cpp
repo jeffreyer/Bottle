@@ -158,7 +158,11 @@ static bool touch_on_inactive_cb(touch_sensor_handle_t sens_handle, const touch_
       lua_hardware_set_button_holding(false);
     }
 
-    if (hold_duration > 800){
+    // 只有实际使用了 is_holding() 的模块才延长系统长按触发时间
+    // 但在蓝牙模式下不延迟，保持快速退出蓝牙的能力
+    uint32_t long_press_threshold = (lua_hardware_is_holding_used() && !ble_config_is_enabled()) ? 9000 : 800;
+
+    if (hold_duration > long_press_threshold){
       // User held for more than 800ms, use the cycle indicator to determine action
       bool in_ble_mode = ble_config_is_enabled();
 
@@ -200,7 +204,11 @@ void check_btn(){
       lua_hardware_set_button_holding(true);
     }
 
-    if (held > 800 && touch_hold_hint < 1) {
+    // 只有实际使用了 is_holding() 的模块才延长系统长按触发时间，避免与 Lua 脚本的长按逻辑冲突
+    // 但在蓝牙模式下不延迟，保持快速退出蓝牙的能力
+    uint32_t long_press_threshold = (lua_hardware_is_holding_used() && !ble_config_is_enabled()) ? 9000 : 800;
+
+    if (held > long_press_threshold && touch_hold_hint < 1) {
       // Start cycling through icons
       touch_hold_hint = 1;
       bool in_ble_mode = ble_config_is_enabled();
@@ -215,7 +223,7 @@ void check_btn(){
       }
     } else if (held > 15000) {
       btn_status = BTN_SLEEP;
-    } else if (held > 800) {
+    } else if (held > long_press_threshold) {
       // Cycling mode: update icon every 1000ms
       if (now - touch_hold_cycle_time > 1000) {
         bool in_ble_mode = ble_config_is_enabled();

@@ -21,6 +21,9 @@ void lua_hardware_stop_resources();
 // 检查当前模块是否声明了 button 权限
 bool lua_hardware_is_button_used();
 
+// 检查当前模块是否使用了 is_holding() 函数
+bool lua_hardware_is_holding_used();
+
 // 发送按键事件给 Lua 模块 (1=click, 2=long_press)
 void lua_hardware_send_button_event(int event_type);
 

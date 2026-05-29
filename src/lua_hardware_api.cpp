@@ -41,6 +41,7 @@ struct ButtonEvent {
 
 ButtonEvent g_button_event = {ButtonEvent::NONE, 0};
 bool g_button_is_holding = false;  // 按键是否正在被按住
+bool g_button_is_holding_used = false;  // 当前模块是否使用了 is_holding() 函数
 
 }  // namespace
 
@@ -100,6 +101,8 @@ void lua_hardware_stop_resources() {
     Serial.println("Lua: Releasing button control...");
     g_use_button = false;
     g_button_event.type = ButtonEvent::NONE;
+    g_button_is_holding = false;
+    g_button_is_holding_used = false;  // 重置 is_holding 使用标志
   }
 }
 
@@ -618,6 +621,7 @@ static int lua_button_poll(lua_State* L) {
 
 // button.is_holding() -> returns true if button is currently being held
 static int lua_button_is_holding(lua_State* L) {
+  g_button_is_holding_used = true;  // 标记当前模块使用了 is_holding()
   lua_pushboolean(L, g_button_is_holding);
   return 1;
 }
@@ -962,6 +966,11 @@ void register_lua_hardware_apis(lua_State* L) {
 // 检查当前模块是否声明了 button 权限
 bool lua_hardware_is_button_used() {
   return g_use_button;
+}
+
+// 检查当前模块是否使用了 is_holding() 函数
+bool lua_hardware_is_holding_used() {
+  return g_button_is_holding_used;
 }
 
 // 发送按键事件给 Lua 模块
