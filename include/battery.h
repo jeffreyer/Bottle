@@ -62,10 +62,10 @@ static void check_bat(){
         );
     }
 
-    // printf("RAW=%d  Voltage=%d mV\n", raw, voltage);
+    // log_e("RAW=%d  Voltage=%d mV\n", raw, voltage);
     // draw_led_text(String(voltage).c_str(), 1, 1, 130, 0, 0);
     // FastLED.show();
-    if (voltage<3150){
+    if (voltage<3080){
         is_low_bat=true;
         
     }
