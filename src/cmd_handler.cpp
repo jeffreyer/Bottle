@@ -157,6 +157,54 @@ void check_cmd(){
       ble_config_unbind();
       log_e("[BLE] Device unbound, password regenerated");
     }
+    else if (command.startsWith("nvs")) {
+      // 读取 NVS 中所有 key 和值
+      log_e("Reading NVS storage:");
+
+      Preferences prefs;
+
+      // 读取 bottle 命名空间
+      if (prefs.begin("bottle", true)) {
+        log_e("\n[Namespace: bottle]");
+        log_e("  page_index = %d", prefs.getInt("page_index", -1));
+        log_e("  brightness = %d", prefs.getInt("brightness", -1));
+        log_e("  sleep_sec = %d", prefs.getInt("sleep_sec", -1));
+        log_e("  i2s_mic = %d", prefs.getInt("i2s_mic", -1));
+        prefs.end();
+      } else {
+        log_e("  ERROR: Cannot open namespace 'bottle'");
+      }
+
+      // 读取 ble_config 命名空间
+      if (prefs.begin("ble_sec", true)) {
+        log_e("\n[Namespace: ble_sec]");
+        log_e("  bound = %d", prefs.getBool("bound", false));
+        prefs.end();
+      } else {
+        log_e("  ERROR: Cannot open namespace 'ble_sec'");
+      }
+
+      // 读取模块配置（遍历可能的模块 ID）
+      uint8_t module_count = module_registry_count();
+      for (uint8_t i = 0; i < module_count; i++) {
+        const module_descriptor_t* module = module_registry_get(i);
+        if (module && module->id) {
+          if (prefs.begin("modules", true)) {
+            log_e("\n[Namespace: %s]", module->id);
+
+            String key=String(module->id) + "_en";
+            // 尝试读取 enabled 状态
+            if (prefs.isKey(key.c_str())) {
+              log_e("  enabled = %d", prefs.getBool(key.c_str(), false));
+            }
+
+            prefs.end();
+          }
+        }
+      }
+
+      log_e("\nNVS dump complete");
+    }
     else if (command.startsWith("ver")) {
       // 查询固件版本号
       log_e("Firmware Version: %s", FIRMWARE_VERSION);

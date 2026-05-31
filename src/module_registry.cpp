@@ -154,6 +154,14 @@ static void parse_lua_metadata(const String& content, module_descriptor_t* modul
   if (id.length() == 0) {
     // Generate ID from filename if not specified
     id = String(module->script_path);
+
+    // 从完整路径中提取文件名（去除目录前缀）
+    int last_slash = id.lastIndexOf('/');
+    if (last_slash >= 0) {
+      id = id.substring(last_slash + 1);
+    }
+
+    // 去除 .lua 扩展名
     id.replace(".lua", "");
   }
 
