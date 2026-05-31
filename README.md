@@ -119,10 +119,26 @@ end
 
 ### 可用的硬件 API
 
-- **LED 控制**: `led.set()`, `led.clear()`, `led.show()`, `led.text()`, `led.hsv()`
-- **时间**: `time.millis()`, `time.delay()`
-- **重力感应**: `gravity.get()` - 返回 X/Y/Z 轴加速度
-- **音频频谱**: `audio.init()`, `audio.getSpectrum()`, `audio.close()`
+- **LED 控制**: 
+  - `led.set(x, y, r, g, b)` - 设置像素颜色
+  - `led.clear()` - 清空显示
+  - `led.show()` - 刷新显示
+  - `led.text(x, y, text, r, g, b)` - 绘制文本
+  - `led.hsv(h, s, v)` - HSV 转 RGB（返回 r, g, b）
+  - `led.palette(palette, index, brightness)` - 调色板插值
+- **时间**: 
+  - `time.millis()` - 获取运行时间（毫秒）
+  - `time.delay(ms)` - 延迟
+- **重力感应**: 
+  - `gravity.get()` - 返回 gx, gy, gz, valid（**注意：需要对调 x-y 轴**）
+- **音频频谱**: 
+  - `fft.get(index)` - 获取频段幅度（**需要归一化：除以 10000.0**）
+  - `fft.count()` - 返回 512（频段数量）
+- **按键**: 
+  - `button.poll()` - 返回事件类型（0=无, 1=单击, 2=长按）
+  - `button.is_holding()` - 检测是否按住
+
+**坐标系**: 左下角为 (0, 0)，右上角为 (16, 7)
 
 ## 内置动画模块
 
