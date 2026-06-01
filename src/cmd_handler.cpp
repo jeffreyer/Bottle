@@ -112,6 +112,34 @@ void check_cmd(){
         }
       }
     }
+    else if (command.startsWith("rm ")) {
+      // 删除 /spiffs 下的文件
+      String filename = command.substring(3);
+      filename.trim();
+
+      if (filename.length() == 0) {
+        log_e("ERROR: No filename specified. Usage: rm <filename>");
+      } else {
+        char filepath[256];
+        snprintf(filepath, sizeof(filepath), "/spiffs/%s", filename.c_str());
+
+        // 检查文件是否存在
+        struct stat st;
+        if (stat(filepath, &st) != 0) {
+          log_e("ERROR: File not found: %s", filepath);
+        } else if (S_ISDIR(st.st_mode)) {
+          log_e("ERROR: Cannot remove directory: %s", filepath);
+          log_e("Use a different method to remove directories");
+        } else {
+          // 删除文件
+          if (remove(filepath) == 0) {
+            log_e("File deleted successfully: %s", filepath);
+          } else {
+            log_e("ERROR: Failed to delete file: %s (errno: %d)", filepath, errno);
+          }
+        }
+      }
+    }
     else if (command.startsWith("ls")) {
       log_e("Files in /extflash:");
       log_e("Attempting to open directory...");

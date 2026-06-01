@@ -1,7 +1,6 @@
 ﻿#include "module_registry.h"
 #include "common.h"
 #include "candle.h"
-#include "rhythm_lua.h"
 #include "sandglass.h"
 #include "sim_manager.h"
 #include "lua_hardware_api.h"
@@ -21,10 +20,9 @@ extern "C" {
 // Built-in modules (static) - configs now stored in NVS as JSON
 // 移除 const 以便在初始化时更新 config_count
 static module_descriptor_t k_builtin_modules[] = {
-  {"rhythm", "音乐律动", "3.0.0", "Bottle", "Lua-powered audio spectrum visualizer", "lua", "lua-5.4.7", nullptr, setup_rhythm_lua_module, unload_rhythm_lua_module, loop_rhythm_lua_module, nullptr, 0, true},
-  {"water", "海洋流体", "1.0.0", "Bottle", "Gravity liquid simulation", "native", "native", nullptr, setup_fluid, unload_fluid, fluid_loop, nullptr, 0, true},
-  {"candle", "蜡烛焰火", "1.0.0", "Bottle", "Gravity-aware candle flame", "native", "native", nullptr, setup_candle, unload_candle, candle_loop, nullptr, 0, true},
-  {"sandglass", "沙漏", "1.0.0", "Bottle", "Gravity sandglass", "native", "native", nullptr, setup_sand, unload_sand, sand_loop, nullptr, 0, true},
+  {"water", "海洋流体", "1.0.0", "Bottle", "Gravity liquid simulation", "native", "native", nullptr, setup_fluid, unload_fluid, fluid_loop, 0, true},
+  {"candle", "蜡烛焰火", "1.0.0", "Bottle", "Gravity-aware candle flame", "native", "native", nullptr, setup_candle, unload_candle, candle_loop, 0, true},
+  {"sandglass", "沙漏", "1.0.0", "Bottle", "Gravity sandglass", "native", "native", nullptr, setup_sand, unload_sand, sand_loop, 0, true},
 };
 
 // Dynamic modules storage
@@ -93,15 +91,6 @@ static void update_module_config_counts() {
         Serial.println(count);
       }
     }
-  }
-}
-
-static String config_type_name(module_config_type_t type) {
-  switch (type) {
-    case MODULE_CONFIG_BOOL: return "bool";
-    case MODULE_CONFIG_SELECT: return "select";
-    case MODULE_CONFIG_INT:
-    default: return "int";
   }
 }
 
@@ -236,7 +225,6 @@ static bool load_dynamic_lua_module(const char* filename, const char* base_dir) 
   module->setup = dynamic_lua_setup;
   module->unload = dynamic_lua_unload;
   module->loop = dynamic_lua_loop;
-  module->configs = nullptr;
   module->config_count = 0;
   module->built_in = false;
 
