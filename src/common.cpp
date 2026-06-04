@@ -8,6 +8,7 @@
 cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, VERTICAL_ZIGZAG_MATRIX> leds;
 
 int32_t page_index=0,subpage_index=0;
+bool is_chk_bat=true;
 
 int load_config(String key){
   Preferences prefs;

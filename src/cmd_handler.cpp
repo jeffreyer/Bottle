@@ -33,6 +33,14 @@ void check_cmd(){
       is_i2s_mic = enabled;
       log_e("I2S Mic %s", enabled ? "enabled" : "disabled");
     }
+    else if (command.startsWith("bat=")) {
+      String value = command.substring(4);
+      bool enabled = value.toInt() != 0;
+      save_config("chk_bat", enabled);
+      extern bool is_chk_bat;
+      is_chk_bat = enabled;
+      log_e("Battery Check %s", enabled ? "enabled" : "disabled");
+    }
     else if (command.startsWith("gettime?")) {
       time_t now = time(NULL);
       struct tm timeinfo;

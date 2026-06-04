@@ -5,7 +5,7 @@
 #include <LEDMatrix.h>
 
 // 固件版本号
-#define FIRMWARE_VERSION "1.0.5"
+#define FIRMWARE_VERSION "1.0.6"
 
 // USB CDC 重定向
 #if !ARDUINO_USB_CDC_ON_BOOT
@@ -34,6 +34,7 @@ extern int32_t page_index,subpage_index;
 
 extern uint8_t brightness_max;
 extern uint8_t user_brightness_max;
+extern bool is_chk_bat;
 
 // Unified max value for LED channels used by all simulators.
 #define PANEL_LED_VALUE_MAX 30

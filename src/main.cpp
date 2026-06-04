@@ -47,6 +47,7 @@ void main_load_config(){
   brightness_max = user_brightness_max;
   s_idle_timeout_ms = prefs.getInt("sleep_sec",IDLE_TIMEOUT_DEFAULT)*1000;
   is_i2s_mic = prefs.getInt("i2s_mic",0);
+  is_chk_bat = prefs.getInt("chk_bat",1);
   prefs.end();
 }
 
@@ -351,7 +352,8 @@ void setup() {
     log_e("[Setup] Failed to enable USB MSC");
   }
 
-  check_low_battery();
+  if (is_chk_bat)
+    check_low_battery();
 
   main_load_config();
 
@@ -383,7 +385,7 @@ void loop() {
 
   check_btn();
 
-  if (millis() - tm_chk_bat > 30000) { // 每30秒检查一次电池状态
+  if (is_chk_bat && millis() - tm_chk_bat > 30000) { // 每30秒检查一次电池状态
     tm_chk_bat = millis();
     check_bat();
     if (is_low_bat) {
