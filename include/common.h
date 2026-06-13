@@ -18,17 +18,28 @@ extern USBCDC USBSerial;
 #define DATA_PIN     48
 #define TOUCH_PIN    12
 
+#define BOTTLE_V4
+
+#ifdef BOTTLE_V4
+#define MATRIX_WIDTH     32
+#else
 #define MATRIX_WIDTH     17
+#endif
 #define MATRIX_HEIGHT    8
 #define NUM_LEDS    (MATRIX_WIDTH * MATRIX_HEIGHT)
 
 // #define MPU6050
+
 #define LIS3DH
 
 // #define MIC_I2S
 #define MIC_PDM
 
+#ifdef BOTTLE_V4
+extern cLEDMatrix<-MATRIX_WIDTH, MATRIX_HEIGHT, VERTICAL_ZIGZAG_MATRIX> leds;
+#else
 extern cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, VERTICAL_ZIGZAG_MATRIX> leds;
+#endif
 
 extern int32_t page_index,subpage_index;
 

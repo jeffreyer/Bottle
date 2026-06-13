@@ -41,36 +41,39 @@ void show_ble_hold_hint(bool show_slash) {
   FastLED.show();
   delay(5);
 
-  // Draw Bluetooth icon (same as in ble_config.cpp)
+  // Draw Bluetooth icon, centered on the display
   rgb_set_brightness(brightness_max);
+
+  const uint8_t center_x = MATRIX_WIDTH / 2;  // Center horizontally
+  const uint8_t center_y = MATRIX_HEIGHT / 2; // Center vertically
 
   const uint8_t blue = 48;
   const uint8_t cyan = 20;
-  auto px = [&](uint8_t x, uint8_t y) {
-    rgb_set(x, y, 0, cyan, blue);
+  auto px = [&](int8_t offset_x, int8_t offset_y) {
+    rgb_set(center_x + offset_x, center_y + offset_y, 0, cyan, blue);
   };
 
-  // 8-row Bluetooth glyph, centered on the 17x8 panel.
-  px(8, 0);
-  px(8, 1); px(9, 1);
-  px(5, 2); px(7, 2); px(8, 2); px(10, 2);
-  px(6, 3); px(8, 3); px(9, 3);
-  px(6, 4); px(8, 4); px(9, 4);
-  px(5, 5); px(7, 5); px(8, 5); px(10, 5);
-  px(8, 6); px(9, 6);
-  px(8, 7);
+  // 8-row Bluetooth glyph, now centered using offsets from center
+  px(0, -4);
+  px(0, -3); px(1, -3);
+  px(-3, -2); px(-1, -2); px(0, -2); px(2, -2);
+  px(-2, -1); px(0, -1); px(1, -1);
+  px(-2, 0); px(0, 0); px(1, 0);
+  px(-3, 1); px(-1, 1); px(0, 1); px(2, 1);
+  px(0, 2); px(1, 2);
+  px(0, 3);
 
   // Add red diagonal slash only when show_slash is true (BLE mode = turn off)
   if (show_slash) {
     // Diagonal line from top-left to bottom-right across the BLE icon
-    rgb_set(4, 1, 80, 0, 0);
-    rgb_set(5, 2, 80, 0, 0);
-    rgb_set(6, 3, 80, 0, 0);
-    rgb_set(7, 4, 80, 0, 0);
-    rgb_set(8, 4, 80, 0, 0);
-    rgb_set(9, 5, 80, 0, 0);
-    rgb_set(10, 6, 80, 0, 0);
-    rgb_set(11, 7, 80, 0, 0);
+    rgb_set(center_x - 4, center_y - 3, 80, 0, 0);
+    rgb_set(center_x - 3, center_y - 2, 80, 0, 0);
+    rgb_set(center_x - 2, center_y - 1, 80, 0, 0);
+    rgb_set(center_x - 1, center_y, 80, 0, 0);
+    rgb_set(center_x, center_y, 80, 0, 0);
+    rgb_set(center_x + 1, center_y + 1, 80, 0, 0);
+    rgb_set(center_x + 2, center_y + 2, 80, 0, 0);
+    rgb_set(center_x + 3, center_y + 3, 80, 0, 0);
   }
 
   FastLED.show();

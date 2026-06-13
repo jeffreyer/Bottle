@@ -5,6 +5,7 @@
 #include "module_registry.h"
 #include "rgb.h"
 #include "sleep_manager.h"
+#include "touch_icons.h"
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <sys/time.h>
@@ -299,26 +300,8 @@ static void set_status(const String& s) {
 }
 
 static void draw_ble_icon(void) {
-    FastLED.clear();
-    rgb_set_brightness(brightness_max);
-
-    const uint8_t blue = 48;
-    const uint8_t cyan = 20;
-    auto px = [&](uint8_t x, uint8_t y) {
-        rgb_set(x, y, 0, cyan, blue);
-    };
-
-    // 8-row Bluetooth glyph, centered on the 17x8 panel.
-    px(8, 0);
-    px(8, 1); px(9, 1);
-    px(5, 2); px(7, 2); px(8, 2); px(10, 2);
-    px(6, 3); px(8, 3); px(9, 3);
-    px(6, 4); px(8, 4); px(9, 4);
-    px(5, 5); px(7, 5); px(8, 5); px(10, 5);
-    px(8, 6); px(9, 6);
-    px(8, 7);
-
-    FastLED.show();
+    // Use the unified icon drawing function from touch_icons
+    show_ble_hold_hint(false);
 }
 
 static void apply_command(const String& cmd) {
