@@ -6,6 +6,7 @@
 #include "rgb.h"
 #include "sleep_manager.h"
 #include "touch_icons.h"
+#include "time_calibration.h"
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <sys/time.h>
@@ -865,22 +866,11 @@ static void apply_command(const String& cmd) {
             // 设置时区（会自动保存到 RTC 内存）
             set_timezone(timezone_offset);
 
-            // 设置系统时间
-            struct timeval tv;
-            tv.tv_sec = timestamp;
-            tv.tv_usec = 0;
-            settimeofday(&tv, NULL);
+            // 使用时间校准模块同步时间（自动计算漂移率并校准）
+            TimeCalibration::sync_time(timestamp);
 
-            Serial.printf("BLE: Time synced to timestamp: %ld, timezone: UTC%+d\n",
-                         timestamp, rtc_timezone_offset);
-
-            // 打印当前时间用于验证
-            time_t now = time(NULL);
-            struct tm timeinfo;
-            localtime_r(&now, &timeinfo);
-            Serial.printf("BLE: Current time: %04d-%02d-%02d %02d:%02d:%02d\n",
-                timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-                timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+            Serial.printf("BLE: Time synced with calibration, timezone: UTC%+d\n",
+                         rtc_timezone_offset);
         }
         return;
     }

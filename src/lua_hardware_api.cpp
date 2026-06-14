@@ -10,6 +10,7 @@
 #include "gravity.h"
 #include "ble_mouse.h"
 #include "sleep_manager.h"
+#include "time_calibration.h"
 
 extern "C" {
 #include "lua.h"
@@ -669,7 +670,8 @@ static int lua_time_delay(lua_State* L) {
 
 // time.now() -> returns table with current time {year, month, day, hour, min, sec, wday}
 static int lua_time_now(lua_State* L) {
-  time_t now = time(NULL);
+  // 使用校准后的时间而不是原始系统时间
+  time_t now = TimeCalibration::get_calibrated_time();
   struct tm timeinfo;
   localtime_r(&now, &timeinfo);
 

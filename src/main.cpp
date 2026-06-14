@@ -10,6 +10,7 @@
 #include "module_registry.h"
 #include "lua_hardware_api.h"
 #include "auto_ota.h"
+#include "time_calibration.h"
 #include <Preferences.h>
 #include "storage_flash.h"
 #include "battery.h"
@@ -345,6 +346,9 @@ void setup() {
 
   // 7. 恢复时区设置
   restore_timezone();
+
+  // 8. 初始化时间校准模块
+  TimeCalibration::init();
 
   if (usb_msc_init()) {
     log_e("[Setup] USB MSC enabled - device is now a USB drive");
