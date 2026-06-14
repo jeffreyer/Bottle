@@ -80,7 +80,8 @@ pio device monitor
 
 Bottle 支持通过 Lua 脚本创建自定义动画效果。详细的 API 文档和示例请参考：
 
-📖 **[Lua 脚本开发指南](docs/LUA_SCRIPT_GUIDE.md)**
+- **Lua模拟器**: [ESP32 Lua LED Matrix Simulator 使用说明](tools/README.md)
+- **[Lua 脚本开发指南 📖](docs/LUA_SCRIPT_GUIDE.md)**
 
 ### 快速示例
 
