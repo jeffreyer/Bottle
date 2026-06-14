@@ -5,7 +5,7 @@
 #include <LEDMatrix.h>
 
 // 固件版本号
-#define FIRMWARE_VERSION "1.0.6"
+#define FIRMWARE_VERSION "1.1.0"
 
 // USB CDC 重定向
 #if !ARDUINO_USB_CDC_ON_BOOT
@@ -18,28 +18,38 @@ extern USBCDC USBSerial;
 #define DATA_PIN     48
 #define TOUCH_PIN    12
 
-// #define BOTTLE_V4
+#define BOTTLE_V4
 
+// LED矩阵配置
 #ifdef BOTTLE_V4
-#define MATRIX_WIDTH     32
-#else
-#define MATRIX_WIDTH     17
-#endif
 #define MATRIX_HEIGHT    8
+#define MATRIX_WIDTH     32
+extern cLEDMatrix<-MATRIX_WIDTH, MATRIX_HEIGHT, VERTICAL_ZIGZAG_MATRIX> leds;
+#else
+#define MATRIX_HEIGHT    8
+#define MATRIX_WIDTH     17
+extern cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, VERTICAL_ZIGZAG_MATRIX> leds;
+#endif
 #define NUM_LEDS    (MATRIX_WIDTH * MATRIX_HEIGHT)
 
+//加速度计
 // #define MPU6050
-
 #define LIS3DH
 
+//麦克风
 // #define MIC_I2S
 #define MIC_PDM
 
+//蓝牙名称和设备型号
 #ifdef BOTTLE_V4
-extern cLEDMatrix<-MATRIX_WIDTH, MATRIX_HEIGHT, VERTICAL_ZIGZAG_MATRIX> leds;
+#define BLE_DEVICE_NAME "BottleLED"
+#define DEVICE_MODEL "Bottle-V4"  // 设备型号，用于区分应用市场可用的应用
 #else
-extern cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, VERTICAL_ZIGZAG_MATRIX> leds;
+#define BLE_DEVICE_NAME "BottleLED"
+#define DEVICE_MODEL "Bottle-V1"  // 设备型号，用于区分应用市场可用的应用
 #endif
+
+//电池检测已在battery.h文件处理
 
 extern int32_t page_index,subpage_index;
 
@@ -51,7 +61,6 @@ extern bool is_chk_bat;
 #define PANEL_LED_VALUE_MAX 30
 
 int load_config(String key);
-
 void save_config(String key,int value);
 
 // 字符串配置支持

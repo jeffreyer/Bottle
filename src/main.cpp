@@ -357,7 +357,7 @@ void setup() {
   }
 
   if (is_chk_bat)
-    check_low_battery();
+    check_battery_init();
 
   main_load_config();
 

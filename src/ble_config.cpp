@@ -46,8 +46,6 @@ void restore_timezone() {
 // 外部变量声明
 extern uint32_t s_idle_timeout_ms;
 
-#define BLE_DEVICE_NAME "BottleLED"
-#define DEVICE_MODEL "Bottle-V1"  // 设备型号，用于区分应用市场可用的应用
 #define BLE_SERVICE_UUID "8c0b8a10-7e3d-4df7-9a2a-1d8d46f8b100"
 #define BLE_CONFIG_CHAR_UUID "8c0b8a11-7e3d-4df7-9a2a-1d8d46f8b100"
 #define BLE_STATUS_CHAR_UUID "8c0b8a12-7e3d-4df7-9a2a-1d8d46f8b100"

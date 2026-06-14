@@ -1,5 +1,6 @@
 #include "cmd_handler.h"
 #include "common.h"
+#include "battery.h"
 #include "gravity.h"
 #include "audio_fft.h"
 #include "usb_msc.h"
@@ -40,6 +41,10 @@ void check_cmd(){
       extern bool is_chk_bat;
       is_chk_bat = enabled;
       log_e("Battery Check %s", enabled ? "enabled" : "disabled");
+    }
+    else if (command.startsWith("bat?")) {
+      int voltage = check_bat();
+      log_e("Battery Voltage: %d mV", voltage);
     }
     else if (command.startsWith("gettime?")) {
       time_t now = time(NULL);
