@@ -245,7 +245,7 @@ static uint8_t candle_root_locked_value(
     uint32_t phase
 ) {
     // Define candle display width (centered on screen)
-    const uint8_t candle_display_width = 16;
+    const uint8_t candle_display_width = 17;
     const int16_t candle_offset = (MATRIX_WIDTH - candle_display_width) / 2;
 
     // Check if pixel is outside candle display area
