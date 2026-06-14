@@ -18,7 +18,7 @@ extern USBCDC USBSerial;
 #define DATA_PIN     48
 #define TOUCH_PIN    12
 
-#define BOTTLE_V4
+// #define BOTTLE_V4
 
 #ifdef BOTTLE_V4
 #define MATRIX_WIDTH     32

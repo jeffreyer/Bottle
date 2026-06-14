@@ -188,14 +188,25 @@ static void update_sand() {
 }
 
 static void render() {
+    // Calculate offset to center the hourglass on the screen
+    // H=17 is the hourglass width, MATRIX_WIDTH=32 is the screen width
+    const int offset_x = (MATRIX_WIDTH - H) / 2;
+
+    // Clear entire screen first
+    FastLED.clear();
+
+    // Render hourglass centered
     for (int y = 0; y < H; y++) {
         for (int x = 0; x < W; x++) {
+            int screen_x = y + offset_x;  // Map hourglass x to screen x (centered)
+            int screen_y = x;              // Map hourglass y to screen y
+
             if (!mask[y][x]) {
-                leds(y, x) = CRGB::Black;
+                leds(screen_x, screen_y) = CRGB::Black;
             } else if (grid[y][x]) {
-                leds(y, x) = fg_color;
+                leds(screen_x, screen_y) = fg_color;
             } else {
-                leds(y, x) = bg_color;
+                leds(screen_x, screen_y) = bg_color;
             }
         }
     }

@@ -244,11 +244,21 @@ static uint8_t candle_root_locked_value(
     bool flip_y,
     uint32_t phase
 ) {
-    int16_t from_root = flip_y ? (MATRIX_WIDTH - 1 - panel_x) : panel_x;
-    if (from_root < 0) from_root = 0;
-    if (from_root > MATRIX_WIDTH - 1) from_root = MATRIX_WIDTH - 1;
+    // Define candle display width (centered on screen)
+    const uint8_t candle_display_width = 16;
+    const int16_t candle_offset = (MATRIX_WIDTH - candle_display_width) / 2;
 
-    uint8_t template_v = ((uint16_t)from_root * 255 + (MATRIX_WIDTH - 1) / 2) / (MATRIX_WIDTH - 1);
+    // Check if pixel is outside candle display area
+    int16_t candle_x = panel_x - candle_offset;
+    if (candle_x < 0 || candle_x >= candle_display_width) {
+        return 0;  // Black outside candle area
+    }
+
+    int16_t from_root = flip_y ? (candle_display_width - 1 - candle_x) : candle_x;
+    if (from_root < 0) from_root = 0;
+    if (from_root > candle_display_width - 1) from_root = candle_display_width - 1;
+
+    uint8_t template_v = ((uint16_t)from_root * 255 + (candle_display_width - 1) / 2) / (candle_display_width - 1);
 
     int16_t center = ((int16_t)MATRIX_HEIGHT - 1) * 128;
     int16_t lateral = ((int16_t)panel_y * 255) - center;
