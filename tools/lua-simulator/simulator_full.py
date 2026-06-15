@@ -81,6 +81,7 @@ class LupaLuaSimulator(LuaSimulator):
 
         # Math库
         self.lua_env.math = self.lua.eval('math')
+        self.lua_env.math.clamp = lambda x, a, b: max(a, min(x, b))
 
         # Print函数
         self.lua_env.print = print
