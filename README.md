@@ -100,8 +100,8 @@ end
 function loop()
   local t = time.millis() / 50
   
-  for x = 0, 16 do
-    for y = 0, 7 do
+for x = 0, WIDTH - 1 do
+    for y = 0, HEIGHT - 1 do
       local hue = (x * 15 + y * 10 + t) % 255
       local r, g, b = led.hsv(hue, 255, 255)
       led.set(x, y, r, g, b)
@@ -160,8 +160,6 @@ end
 2. 使用微信小程序**幻彩抽屉**连接设备（设备名: "BottleLED"）
 3. 通过 小程序 配置模块参数、下载新模块、调整系统设置
 4. 再次长按退出配置模式
-
-**BLE 服务 UUID**: 自定义配置服务（参见 [ble_config.cpp](src/ble_config.cpp)）
 
 ## 音频功能
 
