@@ -3,3 +3,4 @@
 /.claude/
 /misc/
 *.pyc
+/tools/lua-simulator/*.lua
