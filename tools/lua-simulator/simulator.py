@@ -319,6 +319,7 @@ class LuaTimeAPI:
 
     def __init__(self):
         self.start_time = time.time()
+        self.delay_until = 0
 
     def millis(self):
         """返回毫秒数"""
@@ -326,7 +327,7 @@ class LuaTimeAPI:
 
     def delay(self, ms):
         """延迟（在模拟器中不实际延迟）"""
-        pass
+        self.delay_until=time.time() + ms / 1000.0
 
     def now(self):
         """返回当前时间"""
@@ -455,6 +456,7 @@ class SimulatorGUI:
         self.clock = pygame.time.Clock()
         self.running = True
         self.paused = False
+        self.delayed = False
 
         # 字体
         self.font = pygame.font.Font(None, 24)
@@ -490,12 +492,12 @@ class SimulatorGUI:
         self.screen.blit(fps_text, (WINDOW_PADDING, info_y))
 
         # 状态
-        status = "已暂停" if self.paused else "运行中"
+        status = "PAUSED" if self.paused else "RUNNING"
         status_text = self.font.render(status, True, (0, 255, 0) if not self.paused else (255, 255, 0))
         self.screen.blit(status_text, (WINDOW_PADDING + 150, info_y))
 
         # 提示
-        help_text = self.font.render("空格:暂停  R:重载  方向键:重力  鼠标:按键  ESC:退出", True, (150, 150, 150))
+        help_text = self.font.render("Space:Pause R:Reload Arrow:Gravity Mouse:Button ESC:Exit", True, (150, 150, 150))
         self.screen.blit(help_text, (WINDOW_PADDING, info_y + 30))
 
     def handle_events(self):
@@ -514,14 +516,14 @@ class SimulatorGUI:
                     self.simulator.call_setup()
 
                 # 重力控制
-                elif event.key == pygame.K_RIGHT:
-                    self.simulator.gravity_api.set(0.75, 0, 0.866)
-                elif event.key == pygame.K_LEFT:
-                    self.simulator.gravity_api.set(-0.75, 0, 0.866)
                 elif event.key == pygame.K_UP:
-                    self.simulator.gravity_api.set(0, 0.75, 0.866)
+                    self.simulator.gravity_api.set(0.75, 0, 0.866)
                 elif event.key == pygame.K_DOWN:
+                    self.simulator.gravity_api.set(-0.75, 0, 0.866)
+                elif event.key == pygame.K_LEFT:
                     self.simulator.gravity_api.set(0, -0.75, 0.866)
+                elif event.key == pygame.K_RIGHT:
+                    self.simulator.gravity_api.set(0, 0.75, 0.866)
 
             elif event.type == pygame.KEYUP:
                 # 松开方向键，重力归零
@@ -549,7 +551,7 @@ class SimulatorGUI:
             self.screen.fill(BG_COLOR)
 
             # 如果没暂停，执行loop
-            if not self.paused:
+            if not self.paused and not self.delayed:
                 self.simulator.call_loop()
 
             # 绘制矩阵
@@ -563,6 +565,12 @@ class SimulatorGUI:
 
             # 控制帧率
             self.clock.tick(FPS)
+
+            if self.simulator.time_api.delay_until > time.time():
+                # 如果有延迟，暂停loop调用
+                self.delayed = True
+            else:
+                self.delayed = False
 
         # 退出
         self.simulator.call_unload()
