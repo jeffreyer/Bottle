@@ -66,9 +66,15 @@ int check_bat(){
     log_e("RAW=%d  Voltage=%d mV\n", raw, voltage);
     // draw_led_text(String(voltage).c_str(), 1, 1, 130, 0, 0);
     // FastLED.show();
+    #ifdef BOTTLE_V4
+    if (voltage<3180){
+        is_low_bat=true;
+    }
+    #else
     if (voltage<3080){
         is_low_bat=true;
     }
+    #endif
     return voltage;
 }
 
