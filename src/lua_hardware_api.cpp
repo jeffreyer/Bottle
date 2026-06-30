@@ -1054,6 +1054,11 @@ void inject_lua_config_table(lua_State* L, const char* module_id, const char* sc
           }
         }
       }
+      if (type.length() == 0) {
+        if (config_item.indexOf("\"options\"") >= 0) {
+          type = "select";
+        }
+      }
 
       // 根据类型从 NVS 读取配置值（使用命名空间）
       // 使用 isKey() 检查配置是否存在，避免将未保存的配置设置为默认值
