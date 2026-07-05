@@ -4,6 +4,7 @@
 需要安装: pip install lupa
 """
 
+import math
 import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
@@ -83,6 +84,7 @@ class LupaLuaSimulator(LuaSimulator):
         self.lua_env.math = self.lua.eval('math')
         self.lua_env.math.clamp = lambda x, a, b: max(a, min(x, b))
         self.lua_env.math.pow = lambda x, y: x ** y
+        self.lua_env.math.atan2 = lambda y, x: math.atan2(y, x)
 
         # Print函数
         self.lua_env.print = print
