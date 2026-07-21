@@ -34,6 +34,14 @@ void check_cmd(){
       is_i2s_mic = enabled;
       log_e("I2S Mic %s", enabled ? "enabled" : "disabled");
     }
+    else if (command.startsWith("led=")) {
+      String value = command.substring(4);
+      bool enabled = value.toInt() != 0;
+      save_config("led", enabled);
+      extern bool is_led;
+      is_led = enabled;
+      log_e("12mA LED %s", enabled ? "enabled" : "disabled");
+    }
     else if (command.startsWith("bat=")) {
       String value = command.substring(4);
       bool enabled = value.toInt() != 0;
@@ -211,6 +219,7 @@ void check_cmd(){
         log_e("  brightness = %d", prefs.getInt("brightness", -1));
         log_e("  sleep_sec = %d", prefs.getInt("sleep_sec", -1));
         log_e("  i2s_mic = %d", prefs.getInt("i2s_mic", -1));
+        log_e("  led = %d", prefs.getInt("led", -1));
         prefs.end();
       } else {
         log_e("  ERROR: Cannot open namespace 'bottle'");

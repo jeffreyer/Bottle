@@ -173,8 +173,11 @@ static void sim_task(void* arg) {
     float grid[LED_COUNT];
 
     // rgb_init();
-    brightness_max=10;
-    FastLED.setBrightness(10);
+    if (is_led)
+        brightness_max=(int)(user_brightness_max/2+2);
+    else
+        brightness_max = user_brightness_max;
+    FastLED.setBrightness(brightness_max);
 
     if (mem_subindex2<0)
         mem_subindex2=load_config_ns("water_sim", "sim_index");

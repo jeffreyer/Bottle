@@ -45,10 +45,14 @@ void main_load_config(){
   prefs.begin("bottle", true);
   page_index = prefs.getInt("page_index");
   user_brightness_max = prefs.getInt("brightness", user_brightness_max);
-  brightness_max = user_brightness_max;
   s_idle_timeout_ms = prefs.getInt("sleep_sec",IDLE_TIMEOUT_DEFAULT)*1000;
   is_i2s_mic = prefs.getInt("i2s_mic",0);
+  is_led = prefs.getInt("led",0);
   is_chk_bat = prefs.getInt("chk_bat",1);
+  if (is_led)
+      brightness_max=(int)(user_brightness_max/2+2);
+  else
+      brightness_max = user_brightness_max;
   prefs.end();
 }
 
@@ -104,7 +108,10 @@ bool app_set_module_enabled(int32_t page, bool enabled) {
     if (next && next->setup) {
       next->setup();
     }
-    brightness_max = user_brightness_max;
+    if (is_led)
+        brightness_max=(int)(user_brightness_max/2+2);
+    else
+        brightness_max = user_brightness_max;
     rgb_set_brightness(brightness_max);
   }
 
@@ -134,7 +141,10 @@ void app_set_page(int32_t page, int32_t subpage) {
   if (next && next->setup) {
     next->setup();
   }
-  brightness_max = user_brightness_max;
+  if (is_led)
+      brightness_max=(int)(user_brightness_max/2+2);
+  else
+      brightness_max = user_brightness_max;
   rgb_set_brightness(brightness_max);
 
   Preferences prefs;
@@ -289,7 +299,10 @@ void check_btn(){
     if (next && next->setup) {
       next->setup();
     }
-    brightness_max = user_brightness_max;
+    if (is_led)
+        brightness_max=(int)(user_brightness_max/2+2);
+    else
+        brightness_max = user_brightness_max;
     FastLED.setBrightness(brightness_max);
 
   }
@@ -377,7 +390,10 @@ void setup() {
   }
 
   // Restore user brightness after module setup
-  brightness_max = user_brightness_max;
+  if (is_led)
+      brightness_max=(int)(user_brightness_max/2+2);
+  else
+      brightness_max = user_brightness_max;
   FastLED.setBrightness(brightness_max);
 
   sleep_manager_init();

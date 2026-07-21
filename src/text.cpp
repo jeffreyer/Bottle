@@ -220,8 +220,11 @@ void text_loop()
 }
 
 int setup_text(){
-    brightness_max=10;
-    FastLED.setBrightness(10);
+    if (is_led)
+        brightness_max=(int)(user_brightness_max/2+2);
+    else
+        brightness_max = user_brightness_max;
+    FastLED.setBrightness(brightness_max);
     
     init_font_partition();
     

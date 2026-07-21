@@ -18,7 +18,7 @@ extern USBCDC USBSerial;
 #define DATA_PIN     48
 #define TOUCH_PIN    12
 
-#define BOTTLE_V4
+// #define BOTTLE_V4
 
 // LED矩阵配置
 #ifdef BOTTLE_V4
@@ -56,6 +56,7 @@ extern int32_t page_index,subpage_index;
 extern uint8_t brightness_max;
 extern uint8_t user_brightness_max;
 extern bool is_chk_bat;
+extern bool is_led;
 
 // Unified max value for LED channels used by all simulators.
 #define PANEL_LED_VALUE_MAX 30

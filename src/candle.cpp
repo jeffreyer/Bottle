@@ -309,8 +309,11 @@ int candle_loop()
 }
 
 int setup_candle(){
-    brightness_max=10;
-    FastLED.setBrightness(10);
+    if (is_led)
+        brightness_max=(int)(user_brightness_max/2+2);
+    else
+        brightness_max = user_brightness_max;
+    FastLED.setBrightness(brightness_max);
 
     int err = gravity_sensor_start();
     if (err != 0) {

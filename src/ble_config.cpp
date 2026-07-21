@@ -589,7 +589,10 @@ static void apply_command(const String& cmd) {
     if (extract_int(cmd, "brightness", &value)) {
         value = constrain(value, 0, 255);
         user_brightness_max = (uint8_t)value;
-        brightness_max = user_brightness_max;
+        if (is_led)
+            brightness_max=(int)(user_brightness_max/2+2);
+        else
+            brightness_max = user_brightness_max;
         rgb_set_brightness(brightness_max);
         save_config("brightness", user_brightness_max);
     }

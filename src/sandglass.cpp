@@ -248,8 +248,11 @@ int sand_loop() {
 }
 
 int setup_sand() {
-    brightness_max = 10;
-    FastLED.setBrightness(10);
+    if (is_led)
+        brightness_max=(int)(user_brightness_max/2+2);
+    else
+        brightness_max = user_brightness_max;
+    FastLED.setBrightness(brightness_max);
 
     // Load flow speed configuration (1-10, default 5)
     flow_speed = load_config_ns("sandglass", "sand_speed");
