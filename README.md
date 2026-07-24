@@ -62,8 +62,11 @@ Bottle 是一个基于 ESP32-S3 的可编程 LED 矩阵设备，支持通过 Lua
 # 编译固件
 pio run
 
-# 上传到 ESP32-S3
+# 上传代码到 ESP32-S3
 pio run -t upload
+
+# 上传Lua配置文件到 ESP32-S3，或者执行PlatformIO任务里Upload Filesystem Image命令
+pio run -t uploadfs
 
 # 打开串口监视器
 pio device monitor
